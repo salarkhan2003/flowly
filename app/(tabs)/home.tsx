@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { JoinTeamBanner } from '../../components/community/JoinTeamBanner';
-import { UpdateAvailableBanner } from '../../components/home/UpdateAvailableBanner';
+import { HomeUpdatesStrip } from '../../components/home/HomeUpdatesStrip';
 import { useUpdateStore } from '../../stores/updateStore';
 import { DailyBriefCard } from '../../components/home/DailyBriefCard';
 import { NoteCard } from '../../components/notes/NoteCard';
@@ -89,9 +89,11 @@ export default function HomeScreen() {
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
-  useEffect(() => {
-    checkForUpdates().catch(() => {});
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      checkForUpdates({ force: true }).catch(() => {});
+    }, [checkForUpdates])
+  );
 
   useEffect(() => {
     if (user?.id) {
@@ -146,7 +148,7 @@ export default function HomeScreen() {
               <View style={[styles.searchRing, { borderColor: C.textSecondary }]} />
             </TouchableOpacity>
           </View>
-          <UpdateAvailableBanner />
+          <HomeUpdatesStrip />
           <JoinTeamBanner />
         </View>
 

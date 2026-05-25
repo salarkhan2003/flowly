@@ -6,20 +6,28 @@ const MS_24H = 24 * 60 * 60 * 1000;
 interface PrefsState {
   showTeamBanner: boolean;
   teamJoined: boolean;
-  /** Home APK update strip (when manifest says newer version). */
+  /** New APK available strip on Home. */
   showUpdateBanner: boolean;
+  /** Daily “check for updates” strip on Home (when already up to date). */
+  showCheckUpdatesBanner: boolean;
   telegramPromptDismissed: boolean;
   init: () => Promise<void>;
   snoozeTeamBanner24h: () => Promise<void>;
   markTeamJoined: () => Promise<void>;
   snoozeUpdateBanner24h: (version: string) => Promise<void>;
-  refreshUpdateBannerVisibility: (latestVersion: string | null) => void;
+  snoozeCheckUpdatesBanner24h: () => Promise<void>;
+  syncHomeUpdateBanners: (latestVersion: string | null) => Promise<void>;
   dismissTelegramPrompt: () => Promise<void>;
   resetPrefs: () => void;
 }
 
 function shouldShowTeamBanner(snoozeUntil: number | null, joined: boolean): boolean {
   if (joined) return false;
+  if (!snoozeUntil) return true;
+  return Date.now() >= snoozeUntil;
+}
+
+function shouldShowSnoozedBanner(snoozeUntil: number | null): boolean {
   if (!snoozeUntil) return true;
   return Date.now() >= snoozeUntil;
 }
@@ -35,22 +43,31 @@ function shouldShowUpdateBanner(
   return Date.now() >= snoozeUntil;
 }
 
-export const usePrefsStore = create<PrefsState>((set, get) => ({
+export const usePrefsStore = create<PrefsState>((set) => ({
   showTeamBanner: false,
   teamJoined: false,
   showUpdateBanner: false,
+  showCheckUpdatesBanner: false,
   telegramPromptDismissed: false,
 
   init: async () => {
-    const [snoozeUntil, joined, telegram, legacyDismissed, updateSnoozeUntil, updateSnoozeVersion] =
-      await Promise.all([
-        storage.get<number>('team_banner_snooze_until'),
-        storage.get<boolean>('team_joined'),
-        storage.get<boolean>('telegram_prompt_dismissed'),
-        storage.get<boolean>('team_banner_dismissed'),
-        storage.get<number>('update_banner_snooze_until'),
-        storage.get<string>('update_banner_snooze_version'),
-      ]);
+    const [
+      snoozeUntil,
+      joined,
+      telegram,
+      legacyDismissed,
+      updateSnoozeUntil,
+      updateSnoozeVersion,
+      checkSnoozeUntil,
+    ] = await Promise.all([
+      storage.get<number>('team_banner_snooze_until'),
+      storage.get<boolean>('team_joined'),
+      storage.get<boolean>('telegram_prompt_dismissed'),
+      storage.get<boolean>('team_banner_dismissed'),
+      storage.get<number>('update_banner_snooze_until'),
+      storage.get<string>('update_banner_snooze_version'),
+      storage.get<number>('check_updates_banner_snooze_until'),
+    ]);
 
     let snooze = snoozeUntil ?? null;
     if (legacyDismissed && !snooze) {
@@ -64,24 +81,33 @@ export const usePrefsStore = create<PrefsState>((set, get) => ({
       showTeamBanner: shouldShowTeamBanner(snooze, hasJoined),
       teamJoined: hasJoined,
       telegramPromptDismissed: !!telegram,
-      showUpdateBanner: shouldShowUpdateBanner(
-        updateSnoozeUntil ?? null,
-        updateSnoozeVersion ?? null,
-        null
-      ),
+      showUpdateBanner: false,
+      showCheckUpdatesBanner: shouldShowSnoozedBanner(checkSnoozeUntil ?? null),
     });
   },
 
-  refreshUpdateBannerVisibility: (latestVersion) => {
-    storage
-      .get<number>('update_banner_snooze_until')
-      .then((until) =>
-        storage.get<string>('update_banner_snooze_version').then((ver) => {
-          set({
-            showUpdateBanner: shouldShowUpdateBanner(until ?? null, ver ?? null, latestVersion),
-          });
-        })
-      );
+  syncHomeUpdateBanners: async (latestVersion) => {
+    const [updateSnoozeUntil, updateSnoozeVersion, checkSnoozeUntil] = await Promise.all([
+      storage.get<number>('update_banner_snooze_until'),
+      storage.get<string>('update_banner_snooze_version'),
+      storage.get<number>('check_updates_banner_snooze_until'),
+    ]);
+
+    if (latestVersion) {
+      set({
+        showUpdateBanner: shouldShowUpdateBanner(
+          updateSnoozeUntil ?? null,
+          updateSnoozeVersion ?? null,
+          latestVersion
+        ),
+        showCheckUpdatesBanner: false,
+      });
+    } else {
+      set({
+        showUpdateBanner: false,
+        showCheckUpdatesBanner: shouldShowSnoozedBanner(checkSnoozeUntil ?? null),
+      });
+    }
   },
 
   snoozeTeamBanner24h: async () => {
@@ -99,7 +125,13 @@ export const usePrefsStore = create<PrefsState>((set, get) => ({
     const until = Date.now() + MS_24H;
     await storage.set('update_banner_snooze_until', until);
     await storage.set('update_banner_snooze_version', version);
-    set({ showUpdateBanner: false });
+    set({ showUpdateBanner: false, showCheckUpdatesBanner: false });
+  },
+
+  snoozeCheckUpdatesBanner24h: async () => {
+    const until = Date.now() + MS_24H;
+    await storage.set('check_updates_banner_snooze_until', until);
+    set({ showCheckUpdatesBanner: false });
   },
 
   dismissTelegramPrompt: async () => {
@@ -112,6 +144,7 @@ export const usePrefsStore = create<PrefsState>((set, get) => ({
       showTeamBanner: true,
       teamJoined: false,
       showUpdateBanner: false,
+      showCheckUpdatesBanner: true,
       telegramPromptDismissed: false,
     }),
 }));

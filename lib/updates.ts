@@ -1,7 +1,7 @@
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import { Linking } from 'react-native';
-import { getUpdateManifestUrl, GITHUB_RELEASES_API_URL } from '../constants/updates';
+import { DEFAULT_APK_URL, getUpdateManifestUrl, GITHUB_RELEASES_API_URL } from '../constants/updates';
 import type { UpdateCheckPolicy } from '../types';
 import { storage } from './storage';
 
@@ -59,6 +59,12 @@ export function compareSemver(a: string, b: string): number {
     if (diff !== 0) return diff > 0 ? 1 : -1;
   }
   return 0;
+}
+
+/** Numeric code derived from semver for reliable update comparison. */
+export function semverToVersionCode(version: string): number {
+  const parts = normalizeVersion(version).split('.').map((n) => parseInt(n, 10) || 0);
+  return parts[0] * 10_000 + (parts[1] ?? 0) * 100 + (parts[2] ?? 0);
 }
 
 function parseManifest(data: unknown): UpdateManifest | null {
@@ -137,8 +143,7 @@ async function fetchManifestFromGitHubReleases(): Promise<UpdateManifest | null>
 
   return {
     latestVersion: version,
-    // Match installed code so semver decides (avoids false positives vs Android versionCode 1).
-    latestVersionCode: getInstalledVersionCode(),
+    latestVersionCode: semverToVersionCode(version),
     apkUrl: apk.browser_download_url,
     changelog: (data.body ?? '').trim() || `Flowly ${version} is available.`,
     forceUpdate: false,

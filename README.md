@@ -139,7 +139,8 @@ All forms are **optional**. Home header notifications:
 | Banner | When | Actions |
 |--------|------|---------|
 | **Join team** | Until joined or **Later** (24h snooze) | Join → form · Later |
-| **Update available** | When GitHub / `version.json` has a newer APK | Tap → Profile **App & Updates** · **Download** → browser · **Later** (24h snooze per version) |
+| **Update available** | Remote version **newer** than installed (e.g. v1.0.1 vs v1.0.0) | Tap → Profile · **Download** → GitHub APK · **Later** (24h) |
+| **Check for updates** | Once per 24h when already up to date | **Check** → GitHub scan + Profile · **Later** (24h) |
 
 Updates are checked on launch and when you open Home. APK downloads open the [GitHub release](https://github.com/salarkhan2003/flowly/releases/latest) in Chrome/your browser.
 

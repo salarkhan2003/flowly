@@ -86,6 +86,7 @@ export const useAuthStore = create<AppState>((set, get) => ({
     await storage.remove('team_joined');
     await storage.remove('update_banner_snooze_until');
     await storage.remove('update_banner_snooze_version');
+    await storage.remove('check_updates_banner_snooze_until');
     await storage.remove('telegram_prompt_dismissed');
     set({ user: null, isOnboarded: false, isLoading: false });
   },

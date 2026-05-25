@@ -144,7 +144,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
           lastMessage: `Update available: v${result.manifest.latestVersion}`,
         });
         const { usePrefsStore } = require('./prefsStore');
-        usePrefsStore.getState().refreshUpdateBannerVisibility(result.manifest.latestVersion);
+        await usePrefsStore.getState().syncHomeUpdateBanners(result.manifest.latestVersion);
 
         const showModal =
           options?.showAlert ??
@@ -172,7 +172,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
           lastMessage: result.message ?? 'Up to date',
         });
         const { usePrefsStore } = require('./prefsStore');
-        usePrefsStore.getState().refreshUpdateBannerVisibility(null);
+        await usePrefsStore.getState().syncHomeUpdateBanners(null);
         if (options?.showAlert) {
           get().showUpdateModal({
             kind: 'up_to_date',
@@ -195,7 +195,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
         lastMessage: errMsg,
       });
       const { usePrefsStore } = require('./prefsStore');
-      usePrefsStore.getState().refreshUpdateBannerVisibility(null);
+      await usePrefsStore.getState().syncHomeUpdateBanners(null);
       if (options?.showAlert) {
         get().showUpdateModal({
           kind: 'error',
@@ -209,6 +209,8 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
     } catch {
       const msg = 'Something went wrong while checking for updates.';
       set({ isChecking: false, lastMessage: msg });
+      const { usePrefsStore } = require('./prefsStore');
+      await usePrefsStore.getState().syncHomeUpdateBanners(null);
       if (options?.showAlert) {
         get().showUpdateModal({
           kind: 'error',

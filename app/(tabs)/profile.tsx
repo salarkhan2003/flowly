@@ -7,6 +7,7 @@ import { showConfirm, showError } from '../../lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { TelegramJoinButton } from '../../components/forms/TelegramJoinButton';
+import { CheckForUpdatesButton } from '../../components/profile/CheckForUpdatesButton';
 import { ClayCard } from '../../components/ui';
 import { getColors, Spacing, Radius } from '../../constants/theme';
 import { useAuthStore } from '../../stores/authStore';
@@ -43,8 +44,25 @@ export default function ProfileScreen() {
     { value: 'never', label: 'Never check', hint: 'Fully offline — check manually below' },
   ];
 
+  const { section } = useLocalSearchParams<{ section?: string }>();
+  const scrollRef = useRef<ScrollView>(null);
+  const updatesSectionY = useRef(0);
+
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(user?.name ?? '');
+
+  useFocusEffect(
+    useCallback(() => {
+      if (section !== 'updates') return;
+      const timer = setTimeout(() => {
+        scrollRef.current?.scrollTo({
+          y: Math.max(0, updatesSectionY.current - 12),
+          animated: true,
+        });
+      }, 400);
+      return () => clearTimeout(timer);
+    }, [section])
+  );
 
   const handleSaveName = async () => {
     const trimmed = nameInput.trim();
@@ -302,23 +320,7 @@ export default function ProfileScreen() {
               </Text>
             )}
 
-            <TouchableOpacity
-              style={[styles.menuItem, { borderBottomColor: C.border }]}
-              onPress={() => checkForUpdates({ force: true, showAlert: true })}
-            >
-              <Text style={[styles.menuItemText, { color: C.textPrimary }]}>Check for updates now</Text>
-              <Text style={[styles.menuItemArrow, { color: C.textMuted }]}>›</Text>
-            </TouchableOpacity>
-
-            {updateAvailable && (
-              <TouchableOpacity
-                style={[styles.menuItem, { borderBottomWidth: 0 }]}
-                onPress={() => openUpdateDownload()}
-              >
-                <Text style={[styles.menuItemText, { color: C.accent }]}>Download latest APK</Text>
-                <Text style={[styles.menuItemArrow, { color: C.accent }]}>↗</Text>
-              </TouchableOpacity>
-            )}
+            <CheckForUpdatesButton />
 
             <Text style={[styles.policyLabel, { color: C.textMuted }]}>Update notifications</Text>
             {UPDATE_POLICY_OPTIONS.map((opt, i) => (
