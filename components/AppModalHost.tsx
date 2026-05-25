@@ -24,7 +24,7 @@ export function AppModalHost() {
       confirmLabel={confirmLabel}
       cancelLabel={cancelLabel}
       loading={loading}
-      dismissable={!loading && (showCancel || variant !== 'destructive')}
+      dismissable={!loading && (showCancel || variant === 'info' || variant === 'success' || variant === 'error')}
       onConfirm={runConfirm}
       onCancel={showCancel ? runCancel : undefined}
     />

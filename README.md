@@ -3,154 +3,175 @@
 ```
 ███████╗██╗      ██████╗ ██╗    ██╗██╗  ██╗   ██╗
 ██╔════╝██║     ██╔═══██╗██║    ██║██║  ╚██╗ ██╔╝
-█████╗  ██║     ██║   ██║██║ █╗ ██║██║   ╚████╔╝ 
-██╔══╝  ██║     ██║   ██║██║███╗██║██║    ╚██╔╝  
-██║     ███████╗╚██████╔╝╚███╔███╔╝███████╗██║   
-╚═╝     ╚══════╝ ╚═════╝  ╚══╝╚══╝ ╚══════╝╚═╝   
+█████╗  ██║     ██║   ██║██║ █╗ ██║██║   ╚████╔╝
+██╔══╝  ██║     ██║   ██║██║███╗██║██║    ╚██╔╝
+██║     ███████╗╚██████╔╝╚███╔███╔╝███████╗██║
+╚═╝     ╚══════╝ ╚═════╝  ╚══╝╚══╝ ╚══════╝╚═╝
 ```
 
-**Your second brain. Offline. Private. AI-powered.**
+**Your second brain. Offline-first. AI-powered.**
 
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-00FF9D?style=flat-square&labelColor=050A14)](.)
-[![Built with](https://img.shields.io/badge/built%20with-Expo%20SDK%2054-00FF9D?style=flat-square&labelColor=050A14)](https://expo.dev)
+[![Expo](https://img.shields.io/badge/Expo%20SDK-54-00FF9D?style=flat-square&labelColor=050A14)](https://expo.dev)
 [![AI](https://img.shields.io/badge/AI-Groq%20llama--3.3--70b-00FF9D?style=flat-square&labelColor=050A14)](https://groq.com)
-[![Storage](https://img.shields.io/badge/storage-AsyncStorage%20%7C%20Offline--first-00FF9D?style=flat-square&labelColor=050A14)](.)
+[![Storage](https://img.shields.io/badge/storage-AsyncStorage%20local-00FF9D?style=flat-square&labelColor=050A14)](.)
 [![License](https://img.shields.io/badge/license-MIT-00FF9D?style=flat-square&labelColor=050A14)](LICENSE)
 
 </div>
 
 ---
 
-## What is Flowly?
+## Overview
 
-Flowly is a fully offline, no-account productivity app. Notes, tasks, projects, and an AI assistant — all stored on your device. No cloud. No sign-in. No data leaving your phone unless you choose to export it.
+**Flowly** is a privacy-focused productivity app for Android and iOS. Notes, tasks, projects, and an AI assistant live on your device — no account, no cloud sync required. Light theme is the default; dark mode is available in Profile.
 
----
-
-## Features
-
-| | |
-|---|---|
-| **Notes** | Rich markdown notes with tags, pinning, archiving, and AI inline actions |
-| **Tasks** | Full task management — priorities, due dates, subtasks, recurring, starred |
-| **Projects** | Group tasks and notes under color-coded projects |
-| **AI Chat** | Groq-powered assistant with full access to your data. Ask questions, create items by voice |
-| **Daily Brief** | AI-generated morning summary of your day |
-| **Calendar** | Visual calendar view of all due tasks and events |
-| **Search** | Instant full-text search across everything |
-| **Dark / Light** | Polished dark mode by default, full light mode support |
-| **Offline-first** | 100% local AsyncStorage. Works with no internet |
-| **No account** | One-time name setup. That's it. |
+| Area | Description |
+|------|-------------|
+| **Notes** | Markdown notes, tags, pin/archive, AI inline actions |
+| **Tasks** | Priorities, due dates, subtasks, today view |
+| **Projects** | Group work with color-coded projects |
+| **AI** | Groq-powered chat with context from your local data |
+| **Community** | Optional team signup & feedback via Formspree |
+| **Telegram** | [Flowly AI Team](https://t.me/FlowlyAITeam) channel (optional) |
 
 ---
 
-## AI — How It Works
+## Quick start
 
-The AI assistant uses **Groq's llama-3.3-70b** model and has read access to all your notes, tasks, and projects in every conversation.
+### Prerequisites
 
-### Creating items via AI
+- Node.js 18+
+- npm or yarn
+- [Expo Go](https://expo.dev/go) or a dev build for device testing
+- Groq API key for AI features
 
-Just ask naturally:
-
-```
-"Create a task to review the proposal by Friday"
-→ Task created: "Review the proposal" · due Friday
-
-"Make a note about my meeting with the design team"
-→ Note created with your content
-
-"Start a new project called Website Redesign"
-→ Project created: Website Redesign
-```
-
-The AI responds with a confirmation message. The item appears instantly in your app. No JSON shown to you — ever.
-
-### Asking questions
-
-```
-"What tasks are overdue?"
-"Summarize my notes about marketing"
-"What's my focus for today?"
-```
-
-The AI reads your actual data and answers directly.
-
----
-
-## Tech Stack
-
-```
-React Native + Expo SDK 54
-Expo Router (file-based navigation)
-Zustand (state management)
-AsyncStorage (local persistence)
-Groq API — llama-3.3-70b-versatile
-expo-haptics, expo-notifications
-TypeScript throughout
-```
-
----
-
-## Project Structure
-
-```
-flowly/
-├── app/
-│   ├── (auth)/          # Onboarding (first launch only)
-│   ├── (tabs)/          # Main app tabs
-│   ├── notes/[id]       # Note detail
-│   ├── tasks/[id]       # Task detail
-│   ├── projects/[id]    # Project detail
-│   └── modals/          # Quick capture, AI command
-├── components/
-│   ├── ui/              # Design system (ClayCard, GlowButton, etc.)
-│   ├── tasks/
-│   ├── notes/
-│   └── home/
-├── stores/              # Zustand stores (auth, tasks, notes, projects, ai, theme)
-├── lib/                 # AI client, storage, notifications
-├── constants/           # Theme, colors, spacing
-└── types/               # TypeScript types
-```
-
----
-
-## Getting Started
+### Install & run
 
 ```bash
-# Install dependencies
+git clone <your-repo-url>
 cd flowly
 npm install
 
-# Start dev server
-npx expo start
+# Add your Groq key (required for AI)
+echo EXPO_PUBLIC_GROQ_API_KEY=your_key_here > .env
 
-# Build for Android (EAS)
-eas build --platform android --profile preview
+npx expo start
 ```
 
-Requires an [Expo account](https://expo.dev) for EAS builds.
+Press `a` for Android or `i` for iOS in the Expo CLI.
+
+### Production Android build (EAS)
+
+```bash
+npm run eas:configure
+npm run eas:build:android
+```
 
 ---
 
-## Data & Privacy
+## Configuration
 
-- All data is stored locally using AsyncStorage on your device
-- Nothing is sent to any server except AI chat messages (sent to Groq's API for processing)
-- AI chat history is stored locally only
-- Export your data anytime from Profile → Export All Data
-- Reset everything from Profile → Reset App
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `EXPO_PUBLIC_GROQ_API_KEY` | Yes (for AI) | Groq API access |
+| Formspree | Pre-configured | Team join, feedback, onboarding emails |
+
+**Formspree** endpoint: `https://formspree.io/f/mdajlqnk`
+
+Every submission includes a hidden-style field:
+
+| `formType` value | Form |
+|------------------|------|
+| `join_team` | Profile → Join Flowly team |
+| `feedback` | Profile → Bugs & feedback |
+| `onboarding` | Last onboarding slide (optional email) |
+
+**Telegram:** [https://t.me/FlowlyAITeam](https://t.me/FlowlyAITeam) — linked from join form, success screen, and Profile.
 
 ---
 
-## Reset App
+## App structure
 
-Profile → Reset App wipes all local data and returns to the onboarding screen. This is permanent and cannot be undone.
+```
+app/
+├── (auth)/onboarding     # First launch — name + optional email
+├── (tabs)/               # Home, Notes, Tasks, AI, Profile
+├── forms/                # join-team, feedback (Formspree)
+├── hub/                  # Calendar, search, projects, completed
+├── notes|tasks|projects/[id]
+└── modals/
+
+components/               # UI, forms, navigation (ClayTabBar)
+stores/                   # Zustand + AsyncStorage persistence
+lib/                      # AI, Formspree, storage, updates
+constants/                # Theme, community links
+```
+
+---
+
+## Data & privacy
+
+- **Local-first:** Notes, tasks, projects, AI history → `AsyncStorage` (`flowly:*` prefix).
+- **Network:** Only Groq (AI chat) and Formspree (optional forms) when you submit or chat.
+- **Export:** Profile → Export All Data (JSON share).
+- **Reset:** Profile → Reset App — wipes all local data and returns to onboarding.
+
+---
+
+## AI assistant
+
+Powered by **Groq `llama-3.3-70b-versatile`**. The assistant reads your notes, tasks, and projects to answer questions. Create items with natural language:
+
+```
+Create a task to call the client by Friday
+Add a note about today's standup
+Start a project called Website v2
+```
+
+Creation uses structured actions server-side; you only see plain confirmations.
+
+---
+
+## Forms & community
+
+All forms are **optional**. Users can skip, ignore the home banner, or dismiss the Telegram prompt.
+
+- **Join team:** Name, email, mobile, age range (chips), gender (chips)
+- **Feedback:** Category, title, details, reply email
+- **Onboarding:** Optional email on last slide (submits with `formType: onboarding`)
+
+---
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| AI says "not configured" | Set `EXPO_PUBLIC_GROQ_API_KEY` in `.env`, restart Metro |
+| `Unable to activate keep awake` (dev) | Run `npx expo install expo-keep-awake`, restart bundler |
+| Form keyboard dismisses | Fixed via `FormScrollLayout` — pull latest |
+| Formspree fails | Check internet; confirm field `formType` exists in Formspree dashboard |
+
+---
+
+## Tech stack
+
+- React Native 0.81 · Expo SDK 54 · Expo Router 6
+- Zustand · AsyncStorage
+- TypeScript · expo-haptics · expo-notifications
+- Formspree (JSON POST) · Groq API
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
 ---
 
 <div align="center">
 
 Made with focus. Built for flow.
+
+[Telegram — Flowly AI Team](https://t.me/FlowlyAITeam)
 
 </div>

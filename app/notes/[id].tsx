@@ -9,11 +9,18 @@ import { Radius, Spacing, Typography } from "../../constants/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { useNotesStore } from "../../stores/notesStore";
 import { useAuthStore } from "../../stores/authStore";
-import { runInlineAction } from "../../lib/ai";
-const ACTIONS = [{ key: "summarize", label: "Summarize" },{ key: "rewrite", label: "Rewrite" },{ key: "expand", label: "Expand" },{ key: "extract_tasks", label: "Extract Tasks" },{ key: "auto_tag", label: "Auto-tag" }];
+import { runInlineAction, type InlineAction } from "../../lib/ai";
+const ACTIONS: { key: InlineAction; label: string }[] = [
+  { key: "summarize", label: "Summarize" },
+  { key: "rewrite", label: "Rewrite" },
+  { key: "expand", label: "Expand" },
+  { key: "extract_tasks", label: "Extract Tasks" },
+  { key: "auto_tag", label: "Auto-tag" },
+];
 export default function NoteEditorScreen() {
   const { C } = useTheme();
-  const { id } = useLocalSearchParams();
+  const { id: idParam } = useLocalSearchParams<{ id?: string }>();
+  const id = typeof idParam === "string" ? idParam : Array.isArray(idParam) ? idParam[0] ?? "new" : "new";
   const { getNoteById, addNote, updateNote, deleteNote } = useNotesStore();
   const { user } = useAuthStore();
   const isNew = id === "new";
@@ -25,7 +32,7 @@ export default function NoteEditorScreen() {
   const [isPinned, setIsPinned] = useState(existing?.is_pinned ?? false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState("");
-  const saveTimeout = useRef(null);
+  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (isNew) return;
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
@@ -48,7 +55,17 @@ export default function NoteEditorScreen() {
       onConfirm: async () => { if (!isNew) await deleteNote(id); router.back(); },
     });
   };
-  const handleAI = async (action) => { if (!content) return; setAiLoading(true); setAiResult(""); try { setAiResult(await runInlineAction(action, content)); } catch { setAiResult("AI action failed."); } setAiLoading(false); };
+  const handleAI = async (action: InlineAction) => {
+    if (!content) return;
+    setAiLoading(true);
+    setAiResult("");
+    try {
+      setAiResult(await runInlineAction(action, content));
+    } catch {
+      setAiResult("AI action failed.");
+    }
+    setAiLoading(false);
+  };
   const addTag = () => { const t = tagInput.trim().toLowerCase().replace(/\s+/g, "-"); if (t && !tags.includes(t)) setTags([...tags, t]); setTagInput(""); };
   return (
     <SafeAreaView style={[s.container, { backgroundColor: C.bg }]}>

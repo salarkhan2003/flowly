@@ -232,7 +232,6 @@ export function ClayTabBar({ state, descriptors, navigation }: BottomTabBarProps
         ]}
       >
         <View style={[styles.topShine, { backgroundColor: C.clayHighlight }]} />
-        <View style={[styles.vein, { backgroundColor: C.tabBarVein }]} />
 
         <View style={styles.row}>
           {orderedRoutes.map((route) => {
@@ -289,15 +288,6 @@ const styles = StyleSheet.create({
     right: 24,
     height: 1,
     zIndex: 2,
-  },
-  vein: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    top: 34,
-    height: 2,
-    borderRadius: 1,
-    zIndex: 0,
   },
   row: {
     flex: 1,

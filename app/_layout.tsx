@@ -13,22 +13,26 @@ import { ForceUpdateGate } from '../components/ForceUpdateGate';
 import { UpdateModalHost } from '../components/UpdateModalHost';
 import { getColors } from '../constants/theme';
 import { useUpdateStore } from '../stores/updateStore';
+import { usePrefsStore } from '../stores/prefsStore';
+import { stabilizeDevKeepAwake } from '../lib/devKeepAwake';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const init = useAuthStore((s) => s.init);
   const initTheme = useThemeStore((s) => s.init);
+  const initPrefs = usePrefsStore((s) => s.init);
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
   const refreshInstalledVersion = useUpdateStore((s) => s.refreshInstalledVersion);
 
   useEffect(() => {
-    Promise.all([init(), initTheme()]).then(() => {
+    Promise.all([init(), initTheme(), initPrefs()]).then(() => {
       refreshInstalledVersion();
       SplashScreen.hideAsync();
       checkForUpdates().catch(() => {});
     });
     requestNotificationPermissions().catch(() => {});
+    stabilizeDevKeepAwake().catch(() => {});
   }, []);
 
   const mode = useThemeStore((s) => s.mode);
@@ -43,6 +47,7 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="hub" />
+          <Stack.Screen name="forms" />
           <Stack.Screen name="notes/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
           <Stack.Screen name="tasks/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
           <Stack.Screen name="projects/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />

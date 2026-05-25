@@ -11,7 +11,7 @@ interface GlowInputProps extends TextInputProps {
   rightIcon?: React.ReactNode;
 }
 
-export function GlowInput({ label, error, containerStyle, leftIcon, rightIcon, style, ...props }: GlowInputProps) {
+export function GlowInput({ label, error, containerStyle, leftIcon, rightIcon, style, onFocus, onBlur, ...props }: GlowInputProps) {
   const { C } = useTheme();
   const [focused, setFocused] = useState(false);
 
@@ -27,8 +27,14 @@ export function GlowInput({ label, error, containerStyle, leftIcon, rightIcon, s
         <TextInput
           style={[styles.input, { color: C.textPrimary }, leftIcon ? styles.inputWithLeft : null, rightIcon ? styles.inputWithRight : null, style]}
           placeholderTextColor={C.textMuted}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onFocus={(e) => {
+            setFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            onBlur?.(e);
+          }}
           {...props}
         />
         {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}

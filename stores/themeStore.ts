@@ -23,6 +23,11 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     const next: ThemeMode = get().mode === 'dark' ? 'light' : 'dark';
     await storage.set('theme_mode', next);
     set({ mode: next });
+    const { useAuthStore } = require('./authStore');
+    const user = useAuthStore.getState().user;
+    if (user) {
+      await useAuthStore.getState().updateSettings({ theme: next });
+    }
   },
 
   setMode: async (mode) => {

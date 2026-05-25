@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { JoinTeamBanner } from '../../components/community/JoinTeamBanner';
 import { DailyBriefCard } from '../../components/home/DailyBriefCard';
 import { NoteCard } from '../../components/notes/NoteCard';
 import { TaskItem } from '../../components/tasks/TaskItem';
@@ -138,6 +139,8 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        <JoinTeamBanner />
+
         <View style={styles.statsRow}>
           <StatPill label="Tasks" value={activeTasks} color={C.pastelMint} onPress={() => router.push('/(tabs)/tasks')} />
           <StatPill label="Notes" value={notes.length} color={C.pastelSky} onPress={() => router.push('/(tabs)/notes')} />
@@ -149,7 +152,7 @@ export default function HomeScreen() {
         <View style={styles.hubGrid}>
           <HubTile label="Calendar" sub="Schedule" letter="C" color={C.pastelPeach} onPress={() => router.push('/hub/calendar')} />
           <HubTile label="Projects" sub={`${projects.length} active`} letter="P" color={C.pastelLavender} onPress={() => router.push('/hub/projects')} />
-          <HubTile label="Search" sub="Find anything" letter="S" color={C.pastelSky} onPress={() => router.push('/hub/search')} />
+          <HubTile label="AI Chat" sub="Ask Flowly" letter="AI" color={C.pastelSky} onPress={() => router.push('/(tabs)/ai')} />
           <HubTile label="Completed" sub="Archive" letter="✓" color={C.pastelMint} onPress={() => router.push('/hub/completed')} />
         </View>
 

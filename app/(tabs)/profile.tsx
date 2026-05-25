@@ -6,6 +6,7 @@ import {
 import { showConfirm, showError } from '../../lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { TelegramJoinButton } from '../../components/forms/TelegramJoinButton';
 import { ClayCard } from '../../components/ui';
 import { getColors, Spacing, Radius } from '../../constants/theme';
 import { useAuthStore } from '../../stores/authStore';
@@ -157,7 +158,9 @@ export default function ProfileScreen() {
                 </View>
                 <View>
                   <Text style={[styles.themeLabel, { color: C.textPrimary }]}>{isDark ? 'Dark Mode' : 'Light Mode'}</Text>
-                  <Text style={[styles.themeSubLabel, { color: C.textMuted }]}>Tap to switch</Text>
+                  <Text style={[styles.themeSubLabel, { color: C.textMuted }]}>
+                    {isDark ? 'Enabled — tap for light' : 'Default light — tap for dark'}
+                  </Text>
                 </View>
               </View>
               <View style={[styles.themeTrack, { backgroundColor: isDark ? C.accentDim : '#E2E8F0', borderColor: isDark ? C.borderGlow : '#CBD5E0' }]}>
@@ -191,6 +194,36 @@ export default function ProfileScreen() {
             <Text style={[styles.aiNote, { color: C.textSecondary }]}>
               Built-in AI with full access to your notes, tasks, and projects.
             </Text>
+          </View>
+        </ClayCard>
+
+        {/* Community & feedback */}
+        <ClayCard style={[styles.section, { backgroundColor: C.bgCard, borderColor: C.borderGlow }]} glowing>
+          <View style={styles.sectionContent}>
+            <View style={styles.sectionTitleRow}>
+              <View style={[styles.iconBox, { backgroundColor: C.pastelLavender + '44', borderColor: C.borderGlow }]}>
+                <Text style={[styles.iconBoxText, { color: C.accent }]}>♥</Text>
+              </View>
+              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Community</Text>
+            </View>
+            <Text style={[styles.aiNote, { color: C.textSecondary }]}>
+              Join the Flowly team for future updates — completely optional.
+            </Text>
+            <TelegramJoinButton compact />
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomColor: C.border }]}
+              onPress={() => router.push('/forms/join-team')}
+            >
+              <Text style={[styles.menuItemText, { color: C.textPrimary }]}>Join Flowly team</Text>
+              <Text style={[styles.menuItemArrow, { color: C.accent }]}>›</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomWidth: 0 }]}
+              onPress={() => router.push('/forms/feedback')}
+            >
+              <Text style={[styles.menuItemText, { color: C.textPrimary }]}>Bugs, feedback & features</Text>
+              <Text style={[styles.menuItemArrow, { color: C.accent }]}>›</Text>
+            </TouchableOpacity>
           </View>
         </ClayCard>
 

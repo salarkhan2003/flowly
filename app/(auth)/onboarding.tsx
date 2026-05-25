@@ -17,6 +17,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Radius, Shadows, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
+import { submitToFormspree } from '../../lib/formspree';
 import { useAuthStore } from '../../stores/authStore';
 
 const { width } = Dimensions.get('window');
@@ -41,7 +42,7 @@ const SLIDES = [
   {
     id: '3',
     title: 'Ready when you are',
-    subtitle: 'Everything stays on your device. Tell us your name to begin.',
+    subtitle: 'Everything stays on your device. Enter your name — email optional for updates.',
     accentKey: 'pastelMint' as const,
     secondaryKey: 'pastelLavender' as const,
     mascot: 'wave' as const,
@@ -190,6 +191,7 @@ export default function OnboardingScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [offline, setOffline] = useState(true);
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [nameError, setNameError] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const { setupProfile } = useAuthStore();
@@ -215,7 +217,16 @@ export default function OnboardingScreen() {
       return;
     }
     setNameError('');
-    await setupProfile(trimmed);
+    const trimmedEmail = email.trim();
+    await setupProfile(trimmed, trimmedEmail || undefined);
+    if (trimmedEmail) {
+      void submitToFormspree({
+        formType: 'onboarding',
+        _subject: 'Flowly onboarding signup',
+        name: trimmed,
+        email: trimmedEmail,
+      });
+    }
     router.replace('/(tabs)/home');
   };
 
@@ -306,6 +317,25 @@ export default function OnboardingScreen() {
                         autoCapitalize="words"
                         returnKeyType="done"
                         onSubmitEditing={handleNext}
+                      />
+                      <TextInput
+                        style={[
+                          styles.nameInput,
+                          {
+                            color: C.textPrimary,
+                            backgroundColor: C.bgCard,
+                            borderColor: C.border,
+                            marginTop: 8,
+                          },
+                          Shadows.soft,
+                        ]}
+                        value={email}
+                        onChangeText={setEmail}
+                        placeholder="Email for updates (optional)"
+                        placeholderTextColor={C.textMuted}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
                       />
                       {nameError ? (
                         <Text style={[styles.nameErr, { color: C.danger }]}>{nameError}</Text>

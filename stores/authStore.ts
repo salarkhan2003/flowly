@@ -19,7 +19,7 @@ interface AppState {
   isOnboarded: boolean;
   // Actions
   init: () => Promise<void>;
-  setupProfile: (name: string) => Promise<void>;
+  setupProfile: (name: string, email?: string) => Promise<void>;
   updateSettings: (settings: Partial<UserSettings>) => Promise<void>;
   updateProfile: (updates: Partial<Pick<User, 'name' | 'avatar_url'>>) => Promise<void>;
   resetApp: () => Promise<void>;
@@ -42,10 +42,12 @@ export const useAuthStore = create<AppState>((set, get) => ({
     set({ user, isOnboarded: true, isLoading: false });
   },
 
-  setupProfile: async (name: string) => {
+  setupProfile: async (name: string, email?: string) => {
+    const trimmedEmail = email?.trim();
     const user: User = {
       id: 'local_user',
       name: name.trim() || 'User',
+      ...(trimmedEmail ? { email: trimmedEmail } : {}),
       created_at: new Date().toISOString(),
       settings: DEFAULT_SETTINGS,
     };
@@ -75,9 +77,11 @@ export const useAuthStore = create<AppState>((set, get) => ({
     useTasksStore.setState({ tasks: [], userId: null, isLoading: false });
     useNotesStore.setState({ notes: [], userId: null, isLoading: false });
     useProjectsStore.setState({ projects: [], userId: null, isLoading: false });
-    useThemeStore.setState({ mode: 'dark' });
+    await useThemeStore.getState().setMode('light');
     const { useAIStore } = require('./aiStore');
     useAIStore.setState({ conversations: [], activeConversationId: null, dailyBrief: null, appContext: {} });
+    const { usePrefsStore } = require('./prefsStore');
+    usePrefsStore.getState().resetPrefs();
     set({ user: null, isOnboarded: false, isLoading: false });
   },
 }));

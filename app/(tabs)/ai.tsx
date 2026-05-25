@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
 import {
-  Animated, FlatList, KeyboardAvoidingView, Modal, Platform,
+  Animated, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,8 +13,8 @@ import { useTasksStore } from '../../stores/tasksStore';
 import { useProjectsStore } from '../../stores/projectsStore';
 import { AIConversation, AIMessage } from '../../types';
 
-// Floating navbar: 66px height + bottom inset + 8 margin
-const TAB_BAR_HEIGHT = 66 + 8;
+/** Space above floating tab bar when keyboard is closed */
+const TAB_BAR_CLEARANCE = 78;
 
 const SUGGESTIONS = [
   'What are my pending tasks?',
@@ -36,6 +36,7 @@ export default function AIScreen() {
   } = useAIStore();
 
   const [input, setInput] = useState('');
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const dotAnim = useRef(new Animated.Value(0)).current;
@@ -44,6 +45,17 @@ export default function AIScreen() {
   const activeConvIdRef = useRef<string | null>(activeConversationId);
   useEffect(() => { activeConvIdRef.current = activeConversationId; }, [activeConversationId]);
   const activeConv = conversations.find((c) => c.id === activeConversationId);
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvt, () => setKeyboardOpen(true));
+    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardOpen(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (user?.id) loadConversations(user.id);
@@ -125,10 +137,10 @@ export default function AIScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* KAV — pushes input bar above keyboard on both iOS and Android */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         {/* Messages list */}
         <ScrollView
@@ -194,7 +206,9 @@ export default function AIScreen() {
         <View style={[s.bar, {
           backgroundColor: C.bgCard,
           borderTopColor: C.border,
-          paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, 0) + 16,
+          paddingBottom: keyboardOpen
+            ? Math.max(insets.bottom, 8)
+            : TAB_BAR_CLEARANCE + Math.max(insets.bottom, 0),
         }]}>
           <TextInput
             style={[s.input, { backgroundColor: C.bgCardAlt, borderColor: C.border, color: C.textPrimary }]}
