@@ -2,6 +2,6 @@
   "latestVersion": "1.0.0",
   "latestVersionCode": 1,
   "apkUrl": "https://github.com/salarkhan2003/flowly/releases/latest/download/Flowly.apk",
-  "changelog": "• First public release\n• 100% offline AI notes + tasks",
+  "changelog": "• First public release\n• 100% offline AI notes + tasks\n• Fixed update checker",
   "forceUpdate": false
 }
