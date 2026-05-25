@@ -7,10 +7,14 @@ export interface User {
   settings: UserSettings;
 }
 
+export type UpdateCheckPolicy = 'never' | 'notify' | 'on_launch';
+
 export interface UserSettings {
   theme: 'dark' | 'light';
   notifications_enabled: boolean;
   daily_brief_time: string; // HH:mm
+  /** APK update checks: never | badge in Settings | prompt on launch */
+  update_check_policy?: UpdateCheckPolicy;
 }
 
 // ─── Notes ───────────────────────────────────────────────────────────────────

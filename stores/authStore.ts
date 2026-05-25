@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   theme: 'light',
   notifications_enabled: true,
   daily_brief_time: '08:00',
+  update_check_policy: 'notify',
 };
 
 interface AppState {

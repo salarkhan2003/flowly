@@ -12,6 +12,8 @@ import { useNotesStore } from '../../stores/notesStore';
 import { useTasksStore } from '../../stores/tasksStore';
 import { useProjectsStore } from '../../stores/projectsStore';
 import { useThemeStore } from '../../stores/themeStore';
+import { useUpdateStore } from '../../stores/updateStore';
+import type { UpdateCheckPolicy } from '../../types';
 import * as Haptics from 'expo-haptics';
 
 export default function ProfileScreen() {
@@ -20,8 +22,24 @@ export default function ProfileScreen() {
   const { tasks } = useTasksStore();
   const { projects } = useProjectsStore();
   const { mode, toggle } = useThemeStore();
+  const {
+    available: updateAvailable,
+    installedVersion,
+    isChecking,
+    checkForUpdates,
+    promptUpdate,
+    openUpdateDownload,
+    lastMessage,
+  } = useUpdateStore();
   const C = getColors(mode);
   const isDark = mode === 'dark';
+  const updatePolicy: UpdateCheckPolicy = user?.settings?.update_check_policy ?? 'notify';
+
+  const UPDATE_POLICY_OPTIONS: { value: UpdateCheckPolicy; label: string; hint: string }[] = [
+    { value: 'notify', label: 'Notify in Settings', hint: 'Badge only — no popup on launch' },
+    { value: 'on_launch', label: 'Prompt on launch', hint: 'Ask when you open the app (max once / 24h)' },
+    { value: 'never', label: 'Never check', hint: 'Fully offline — check manually below' },
+  ];
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(user?.name ?? '');
@@ -199,6 +217,93 @@ export default function ProfileScreen() {
           </View>
         </ClayCard>
 
+        {/* App & updates */}
+        <ClayCard style={[styles.section, { backgroundColor: C.bgCard, borderColor: updateAvailable ? C.borderGlow : C.border }]} glowing={!!updateAvailable}>
+          <View style={styles.sectionContent}>
+            <View style={styles.sectionTitleRow}>
+              <View style={[styles.iconBox, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}>
+                <Text style={[styles.iconBoxText, { color: C.accent }]}>↑</Text>
+              </View>
+              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>App & Updates</Text>
+              {updateAvailable && (
+                <View style={[styles.updateBadge, { backgroundColor: C.accent, borderColor: C.accent }]}>
+                  <Text style={[styles.updateBadgeText, { color: C.bg }]}>New</Text>
+                </View>
+              )}
+            </View>
+
+            <Text style={[styles.versionLine, { color: C.textSecondary }]}>
+              Installed: Flowly v{installedVersion}
+              {isChecking ? ' · checking…' : ''}
+            </Text>
+            {lastMessage && !isChecking ? (
+              <Text style={[styles.lastCheckMsg, { color: updateAvailable ? C.accent : C.textMuted }]}>
+                {lastMessage}
+              </Text>
+            ) : null}
+
+            {updateAvailable ? (
+              <TouchableOpacity
+                style={[styles.updateBanner, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}
+                onPress={promptUpdate}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.updateBannerTitle, { color: C.accent }]}>
+                  v{updateAvailable.latestVersion} available
+                </Text>
+                <Text style={[styles.updateBannerBody, { color: C.textSecondary }]} numberOfLines={3}>
+                  {updateAvailable.changelog}
+                </Text>
+                <Text style={[styles.updateBannerAction, { color: C.accent }]}>Tap to download APK →</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={[styles.aiNote, { color: C.textMuted }]}>
+                Direct APK installs do not auto-update. We check your hosted version.json (when online).
+              </Text>
+            )}
+
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomColor: C.border }]}
+              onPress={() => checkForUpdates({ force: true, showAlert: true })}
+            >
+              <Text style={[styles.menuItemText, { color: C.textPrimary }]}>Check for updates now</Text>
+              <Text style={[styles.menuItemArrow, { color: C.textMuted }]}>›</Text>
+            </TouchableOpacity>
+
+            {updateAvailable && (
+              <TouchableOpacity
+                style={[styles.menuItem, { borderBottomWidth: 0 }]}
+                onPress={() => openUpdateDownload()}
+              >
+                <Text style={[styles.menuItemText, { color: C.accent }]}>Download latest APK</Text>
+                <Text style={[styles.menuItemArrow, { color: C.accent }]}>↗</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={[styles.policyLabel, { color: C.textMuted }]}>Update notifications</Text>
+            {UPDATE_POLICY_OPTIONS.map((opt, i) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.policyRow,
+                  { borderBottomColor: C.border, borderBottomWidth: i < UPDATE_POLICY_OPTIONS.length - 1 ? 1 : 0 },
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  updateSettings({ update_check_policy: opt.value });
+                  if (opt.value !== 'never') checkForUpdates({ force: true });
+                }}
+              >
+                <View style={styles.policyLeft}>
+                  <Text style={[styles.policyTitle, { color: C.textPrimary }]}>{opt.label}</Text>
+                  <Text style={[styles.policyHint, { color: C.textMuted }]}>{opt.hint}</Text>
+                </View>
+                <View style={[styles.policyDot, { borderColor: C.borderGlow, backgroundColor: updatePolicy === opt.value ? C.accent : 'transparent' }]} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ClayCard>
+
         {/* Data */}
         <ClayCard style={[styles.section, { backgroundColor: C.bgCard, borderColor: C.border }]}>
           <View style={styles.sectionContent}>
@@ -232,7 +337,9 @@ export default function ProfileScreen() {
           <Text style={[styles.resetBtnText, { color: C.danger }]}>Reset App</Text>
         </TouchableOpacity>
 
-        <Text style={[styles.version, { color: C.textMuted }]}>Flowly v1.0.0 · Offline-first · Local storage</Text>
+        <Text style={[styles.version, { color: C.textMuted }]}>
+          Flowly v{installedVersion} · Offline-first · Local storage
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -284,4 +391,18 @@ const styles = StyleSheet.create({
   resetBtn: { marginTop: Spacing.sm, paddingVertical: 14, borderRadius: Radius.md, borderWidth: 1, alignItems: 'center' },
   resetBtnText: { fontSize: 14, fontWeight: '600' },
   version: { fontSize: 11, textAlign: 'center', marginTop: 4 },
+  versionLine: { fontSize: 13, marginBottom: 4 },
+  lastCheckMsg: { fontSize: 12, lineHeight: 17, marginBottom: 6 },
+  updateBadge: { marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.full, borderWidth: 1 },
+  updateBadgeText: { fontSize: 10, fontWeight: '800' },
+  updateBanner: { padding: 12, borderRadius: Radius.md, borderWidth: 1, gap: 4, marginBottom: 4 },
+  updateBannerTitle: { fontSize: 15, fontWeight: '700' },
+  updateBannerBody: { fontSize: 12, lineHeight: 18 },
+  updateBannerAction: { fontSize: 12, fontWeight: '700', marginTop: 4 },
+  policyLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 8 },
+  policyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12 },
+  policyLeft: { flex: 1, gap: 2 },
+  policyTitle: { fontSize: 14, fontWeight: '600' },
+  policyHint: { fontSize: 11 },
+  policyDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2 },
 });
