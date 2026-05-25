@@ -1,0 +1,287 @@
+import React, { useState } from 'react';
+import {
+  Alert, Animated, Image, ScrollView, Share, StyleSheet,
+  Switch, Text, TextInput, TouchableOpacity, View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { ClayCard } from '../../components/ui';
+import { getColors, Spacing, Radius } from '../../constants/theme';
+import { useAuthStore } from '../../stores/authStore';
+import { useNotesStore } from '../../stores/notesStore';
+import { useTasksStore } from '../../stores/tasksStore';
+import { useProjectsStore } from '../../stores/projectsStore';
+import { useThemeStore } from '../../stores/themeStore';
+import * as Haptics from 'expo-haptics';
+
+export default function ProfileScreen() {
+  const { user, updateSettings, updateProfile, resetApp } = useAuthStore();
+  const { notes } = useNotesStore();
+  const { tasks } = useTasksStore();
+  const { projects } = useProjectsStore();
+  const { mode, toggle } = useThemeStore();
+  const C = getColors(mode);
+  const isDark = mode === 'dark';
+
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(user?.name ?? '');
+
+  const handleSaveName = async () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed) return;
+    await updateProfile({ name: trimmed });
+    setEditingName(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const handleThemeToggle = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await toggle();
+  };
+
+  const handleExport = async () => {
+    const data = {
+      exported_at: new Date().toISOString(),
+      user: { name: user?.name },
+      notes: notes.map((n) => ({ title: n.title, content: n.content, tags: n.tags })),
+      tasks: tasks.map((t) => ({ title: t.title, status: t.status, priority: t.priority, due_date: t.due_date })),
+      projects: projects.map((p) => ({ name: p.name, status: p.status, description: p.description })),
+    };
+    try {
+      await Share.share({ message: JSON.stringify(data, null, 2), title: 'Flowly Export' });
+    } catch {
+      Alert.alert('Export failed', 'Could not share data.');
+    }
+  };
+
+  const handleReset = () => {
+    Alert.alert(
+      'Reset App',
+      'This will permanently delete all your data — tasks, notes, projects, and settings. Cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset Everything',
+          style: 'destructive',
+          onPress: async () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            await resetApp();
+            router.replace('/(auth)/onboarding');
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: C.bg }]}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* Avatar + name */}
+        <View style={styles.avatarSection}>
+          <View style={[styles.avatarWrap, { borderColor: C.borderGlow }]}>
+            <Image source={require('../../assets/icon.png')} style={styles.avatarBg} resizeMode="cover" />
+            <View style={[styles.avatarOverlay, { backgroundColor: isDark ? 'rgba(5,10,20,0.55)' : 'rgba(240,244,255,0.55)' }]}>
+              <Text style={[styles.avatarInitial, { color: C.accent }]}>
+                {(user?.name ?? 'U').charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          </View>
+
+          {editingName ? (
+            <View style={styles.nameEditRow}>
+              <TextInput
+                style={[styles.nameInput, { color: C.textPrimary, borderColor: C.borderGlow, backgroundColor: C.bgCard }]}
+                value={nameInput}
+                onChangeText={setNameInput}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleSaveName}
+                placeholder="Your name"
+                placeholderTextColor={C.textMuted}
+              />
+              <TouchableOpacity style={[styles.saveNameBtn, { backgroundColor: C.accent }]} onPress={handleSaveName}>
+                <Text style={[styles.saveNameText, { color: C.bg }]}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.cancelNameBtn, { borderColor: C.border }]} onPress={() => { setEditingName(false); setNameInput(user?.name ?? ''); }}>
+                <Text style={[styles.cancelNameText, { color: C.textMuted }]}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity onPress={() => { setEditingName(true); setNameInput(user?.name ?? ''); }} style={styles.nameRow}>
+              <Text style={[styles.name, { color: C.textPrimary }]}>{user?.name ?? 'User'}</Text>
+              <View style={[styles.editBadge, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}>
+                <Text style={[styles.editBadgeText, { color: C.accent }]}>Edit</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          <Text style={[styles.subtitle, { color: C.textSecondary }]}>All data stored locally on this device</Text>
+        </View>
+
+        {/* Appearance */}
+        <ClayCard style={[styles.section, { backgroundColor: C.bgCard, borderColor: C.border }]}>
+          <View style={styles.sectionContent}>
+            <View style={styles.sectionTitleRow}>
+              <View style={[styles.iconBox, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}>
+                <Text style={[styles.iconBoxText, { color: C.accent }]}>{isDark ? 'D' : 'L'}</Text>
+              </View>
+              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Appearance</Text>
+            </View>
+            <TouchableOpacity style={[styles.themeToggleRow, { backgroundColor: C.bgCardAlt, borderColor: C.border }]} onPress={handleThemeToggle} activeOpacity={0.8}>
+              <View style={styles.themeLeft}>
+                <View style={[styles.themeIconWrap, { backgroundColor: isDark ? '#1a2540' : '#FFF9E6' }]}>
+                  {isDark ? (
+                    <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: C.textSecondary, overflow: 'hidden' }}>
+                      <View style={{ position: 'absolute', top: -2, right: -2, width: 12, height: 12, borderRadius: 6, backgroundColor: C.bgCardAlt }} />
+                    </View>
+                  ) : (
+                    <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#FFB830' }} />
+                  )}
+                </View>
+                <View>
+                  <Text style={[styles.themeLabel, { color: C.textPrimary }]}>{isDark ? 'Dark Mode' : 'Light Mode'}</Text>
+                  <Text style={[styles.themeSubLabel, { color: C.textMuted }]}>Tap to switch</Text>
+                </View>
+              </View>
+              <View style={[styles.themeTrack, { backgroundColor: isDark ? C.accentDim : '#E2E8F0', borderColor: isDark ? C.borderGlow : '#CBD5E0' }]}>
+                <Animated.View style={[styles.themeThumb, {
+                  backgroundColor: isDark ? C.accent : '#FFFFFF',
+                  transform: [{ translateX: isDark ? 22 : 2 }],
+                  shadowColor: isDark ? C.accent : '#000',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: isDark ? 0.8 : 0.2,
+                  shadowRadius: isDark ? 6 : 2,
+                  elevation: isDark ? 6 : 2,
+                }]} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </ClayCard>
+
+        {/* AI Info */}
+        <ClayCard style={[styles.section, { backgroundColor: C.bgCard, borderColor: C.borderGlow }]} glowing>
+          <View style={styles.sectionContent}>
+            <View style={styles.sectionTitleRow}>
+              <View style={[styles.iconBox, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}>
+                <Text style={[styles.iconBoxText, { color: C.accent }]}>AI</Text>
+              </View>
+              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>AI Assistant</Text>
+            </View>
+            <View style={styles.aiRow}>
+              <View style={[styles.aiDot, { backgroundColor: C.accent, shadowColor: C.accent }]} />
+              <Text style={[styles.aiStatus, { color: C.accent }]}>Groq · llama-3.3-70b · Ready</Text>
+            </View>
+            <Text style={[styles.aiNote, { color: C.textSecondary }]}>
+              Built-in AI with full access to your notes, tasks, and projects.
+            </Text>
+          </View>
+        </ClayCard>
+
+        {/* Notifications */}
+        <ClayCard style={[styles.section, { backgroundColor: C.bgCard, borderColor: C.border }]}>
+          <View style={styles.sectionContent}>
+            <View style={styles.sectionTitleRow}>
+              <View style={[styles.iconBox, { backgroundColor: C.warning + '20', borderColor: C.warning + '40' }]}>
+                <Text style={[styles.iconBoxText, { color: C.warning }]}>N</Text>
+              </View>
+              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Notifications</Text>
+            </View>
+            <View style={styles.settingRow}>
+              <Text style={[styles.settingLabel, { color: C.textPrimary }]}>Enable Notifications</Text>
+              <Switch
+                value={user?.settings?.notifications_enabled ?? true}
+                onValueChange={(v) => updateSettings({ notifications_enabled: v })}
+                trackColor={{ false: C.bgCardAlt, true: C.accentDim }}
+                thumbColor={user?.settings?.notifications_enabled ? C.accent : C.textMuted}
+              />
+            </View>
+          </View>
+        </ClayCard>
+
+        {/* Data */}
+        <ClayCard style={[styles.section, { backgroundColor: C.bgCard, borderColor: C.border }]}>
+          <View style={styles.sectionContent}>
+            <View style={styles.sectionTitleRow}>
+              <View style={[styles.iconBox, { backgroundColor: C.info + '20', borderColor: C.info + '40' }]}>
+                <Text style={[styles.iconBoxText, { color: C.info }]}>D</Text>
+              </View>
+              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Data</Text>
+            </View>
+            <TouchableOpacity style={[styles.menuItem, { borderBottomColor: C.border }]} onPress={handleExport}>
+              <Text style={[styles.menuItemText, { color: C.textPrimary }]}>Export All Data</Text>
+              <Text style={[styles.menuItemArrow, { color: C.textMuted }]}>›</Text>
+            </TouchableOpacity>
+            {[
+              { label: 'Notes', count: notes.length },
+              { label: 'Tasks', count: tasks.length },
+              { label: 'Projects', count: projects.length },
+            ].map((item, i, arr) => (
+              <View key={item.label} style={[styles.menuItem, i === arr.length - 1 && { borderBottomWidth: 0 }, { borderBottomColor: C.border }]}>
+                <Text style={[styles.menuItemText, { color: C.textPrimary }]}>{item.label}</Text>
+                <View style={[styles.countBadge, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}>
+                  <Text style={[styles.countText, { color: C.accent }]}>{item.count}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </ClayCard>
+
+        {/* Reset */}
+        <TouchableOpacity style={[styles.resetBtn, { borderColor: C.danger + '50' }]} onPress={handleReset} activeOpacity={0.7}>
+          <Text style={[styles.resetBtnText, { color: C.danger }]}>Reset App</Text>
+        </TouchableOpacity>
+
+        <Text style={[styles.version, { color: C.textMuted }]}>Flowly v1.0.0 · Offline-first · Local storage</Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { padding: Spacing.md, gap: Spacing.md, paddingBottom: 140 },
+  avatarSection: { alignItems: 'center', paddingVertical: Spacing.lg, gap: 10 },
+  avatarWrap: { width: 88, height: 88, borderRadius: 44, overflow: 'hidden', borderWidth: 2 },
+  avatarBg: { position: 'absolute', width: '100%', height: '100%' },
+  avatarOverlay: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
+  avatarInitial: { fontSize: 34, fontWeight: '800' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  name: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
+  editBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.full, borderWidth: 1 },
+  editBadgeText: { fontSize: 11, fontWeight: '700' },
+  nameEditRow: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%', paddingHorizontal: Spacing.md },
+  nameInput: { flex: 1, height: 44, borderRadius: Radius.md, borderWidth: 1.5, paddingHorizontal: 14, fontSize: 16, fontWeight: '600' },
+  saveNameBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: Radius.md },
+  saveNameText: { fontSize: 13, fontWeight: '700' },
+  cancelNameBtn: { paddingHorizontal: 10, paddingVertical: 10, borderRadius: Radius.md, borderWidth: 1 },
+  cancelNameText: { fontSize: 13, fontWeight: '600' },
+  subtitle: { fontSize: 13, fontWeight: '400' },
+  section: { marginBottom: 0 },
+  sectionContent: { padding: Spacing.md, gap: Spacing.sm },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  iconBox: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  iconBoxText: { fontSize: 11, fontWeight: '800' },
+  sectionTitle: { fontSize: 16, fontWeight: '700' },
+  themeToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, borderRadius: Radius.md, borderWidth: 1 },
+  themeLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  themeIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  themeLabel: { fontSize: 15, fontWeight: '600' },
+  themeSubLabel: { fontSize: 11, fontWeight: '400', marginTop: 1 },
+  themeTrack: { width: 48, height: 26, borderRadius: 13, borderWidth: 1, justifyContent: 'center' },
+  themeThumb: { width: 20, height: 20, borderRadius: 10 },
+  aiRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  aiDot: { width: 8, height: 8, borderRadius: 4, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 6, elevation: 4 },
+  aiStatus: { fontSize: 14, fontWeight: '600' },
+  aiNote: { fontSize: 12 },
+  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  settingLabel: { fontSize: 15 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, borderBottomWidth: 1 },
+  menuItemText: { fontSize: 15 },
+  menuItemArrow: { fontSize: 18, fontWeight: '700' },
+  countBadge: { paddingHorizontal: 10, paddingVertical: 2, borderRadius: Radius.full, borderWidth: 1 },
+  countText: { fontSize: 12, fontWeight: '700' },
+  resetBtn: { marginTop: Spacing.sm, paddingVertical: 14, borderRadius: Radius.md, borderWidth: 1, alignItems: 'center' },
+  resetBtnText: { fontSize: 14, fontWeight: '600' },
+  version: { fontSize: 11, textAlign: 'center', marginTop: 4 },
+});
