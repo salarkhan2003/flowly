@@ -1,6 +1,6 @@
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
-import { Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
 import { getUpdateManifestUrl, GITHUB_RELEASES_API_URL } from '../constants/updates';
 import type { UpdateCheckPolicy } from '../types';
 import { storage } from './storage';
@@ -205,31 +205,3 @@ export async function openApkDownload(url: string): Promise<boolean> {
   }
 }
 
-export function showUpdateAlert(manifest: UpdateManifest, options?: { force?: boolean }) {
-  const force = options?.force ?? manifest.forceUpdate ?? false;
-  const buttons = force
-    ? [{ text: 'Download update', onPress: () => openApkDownload(manifest.apkUrl) }]
-    : [
-        { text: 'Later', style: 'cancel' as const },
-        { text: 'Download', onPress: () => openApkDownload(manifest.apkUrl) },
-      ];
-
-  Alert.alert(
-    `Flowly ${manifest.latestVersion} available`,
-    manifest.changelog?.trim() || 'A new version is ready to install.',
-    buttons,
-    { cancelable: !force }
-  );
-}
-
-export function showUpToDateAlert(message?: string) {
-  Alert.alert(
-    'Up to date',
-    message ?? `You're running Flowly v${getInstalledVersionName()}.`,
-    [{ text: 'OK' }]
-  );
-}
-
-export function showUpdateErrorAlert(message: string) {
-  Alert.alert('Update check failed', message, [{ text: 'OK' }]);
-}

@@ -1,8 +1,9 @@
 import React from 'react';
-import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { showConfirm } from '../../lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ClayCard, EmptyState, FAB, GlowButton } from '../../components/ui';
+import { ClayCard, EmptyState, FAB, GlowButton, ScreenHeader } from '../../components/ui';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { useProjectsStore } from '../../stores/projectsStore';
@@ -17,15 +18,7 @@ export default function ProjectsScreen() {
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: C.bg }]}>
-      <View style={s.header}>
-        <View>
-          <Text style={[s.title, { color: C.textPrimary }]}>Projects</Text>
-          <Text style={[s.sub, { color: C.textMuted }]}>{projects.length} total</Text>
-        </View>
-        <View style={[s.countPill, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}>
-          <Text style={[s.countTxt, { color: C.accent }]}>{projects.length}</Text>
-        </View>
-      </View>
+      <ScreenHeader showBack title="Projects" subtitle={`${projects.length} workspaces`} badge={projects.length} />
 
       <FlatList
         data={projects}
@@ -41,7 +34,7 @@ export default function ProjectsScreen() {
           />
         }
       />
-      <FAB onPress={() => router.push('/projects/new')} />
+      <FAB mode="project" />
     </SafeAreaView>
   );
 }
@@ -56,13 +49,16 @@ function ProjectCard({ project, taskCount }: { project: Project; taskCount: numb
   const color = statusColors[project.status] ?? C.accent;
 
   const handleDelete = () => {
-    Alert.alert('Delete Project', `Delete "${project.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); deleteProject(project.id); },
+    showConfirm({
+      title: 'Delete project',
+      message: `Remove "${project.name}"? This cannot be undone.`,
+      destructive: true,
+      confirmLabel: 'Delete',
+      onConfirm: () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        deleteProject(project.id);
       },
-    ]);
+    });
   };
 
   return (

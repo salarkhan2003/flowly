@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Alert, Animated, Image, ScrollView, Share, StyleSheet,
+  Animated, Image, ScrollView, Share, StyleSheet,
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
+import { showConfirm, showError } from '../../lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ClayCard } from '../../components/ui';
@@ -68,27 +69,24 @@ export default function ProfileScreen() {
     try {
       await Share.share({ message: JSON.stringify(data, null, 2), title: 'Flowly Export' });
     } catch {
-      Alert.alert('Export failed', 'Could not share data.');
+      showError('Export failed', 'Could not share your data. Try again.');
     }
   };
 
   const handleReset = () => {
-    Alert.alert(
-      'Reset App',
-      'This will permanently delete all your data — tasks, notes, projects, and settings. Cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset Everything',
-          style: 'destructive',
-          onPress: async () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            await resetApp();
-            router.replace('/(auth)/onboarding');
-          },
-        },
-      ]
-    );
+    showConfirm({
+      title: 'Reset Flowly',
+      message:
+        'This permanently deletes all tasks, notes, projects, and settings on this device. This cannot be undone.',
+      confirmLabel: 'Reset everything',
+      cancelLabel: 'Keep my data',
+      destructive: true,
+      onConfirm: async () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        await resetApp();
+        router.replace('/(auth)/onboarding');
+      },
+    });
   };
 
   return (

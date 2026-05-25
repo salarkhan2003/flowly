@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, SectionList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TaskItem } from '../../components/tasks/TaskItem';
-import { ClayCard, EmptyState } from '../../components/ui';
+import { ClayCard, EmptyState, ScreenHeader } from '../../components/ui';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { useTasksStore } from '../../stores/tasksStore';
@@ -27,15 +27,12 @@ export default function CompletedScreen() {
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: C.bg }]}>
-      <View style={s.header}>
-        <View>
-          <Text style={[s.title, { color: C.textPrimary }]}>Completed</Text>
-          <Text style={[s.sub, { color: C.textMuted }]}>{completedTasks.length + completedProjects.length} items</Text>
-        </View>
-        <View style={[s.countPill, { backgroundColor: C.info + '18', borderColor: C.info + '40' }]}>
-          <Text style={[s.countTxt, { color: C.info }]}>{completedTasks.length + completedProjects.length}</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        showBack
+        title="Completed"
+        subtitle="Finished tasks & projects"
+        badge={completedTasks.length + completedProjects.length}
+      />
 
       {isEmpty ? (
         <EmptyState title="Nothing completed yet" subtitle="Finish tasks or projects to see them here." />

@@ -3,8 +3,10 @@ import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableO
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { ClayCard } from '../../components/ui/ClayCard';
 import { GlowButton } from '../../components/ui';
-import { Colors, Radius, Spacing, Typography } from '../../constants/theme';
+import { Radius, Spacing, Typography } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
 import { useNotesStore } from '../../stores/notesStore';
 import { useTasksStore } from '../../stores/tasksStore';
 import { useProjectsStore } from '../../stores/projectsStore';
@@ -20,6 +22,7 @@ const TYPES: { key: CaptureType; label: string; letter: string }[] = [
 ];
 
 export default function QuickCaptureModal() {
+  const { C } = useTheme();
   const [type, setType] = useState<CaptureType>('note');
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
@@ -36,28 +39,46 @@ export default function QuickCaptureModal() {
     const now = new Date().toISOString();
 
     if (type === 'note') {
-      const note: Note = {
-        id: `note_${Date.now()}`, user_id: user.id,
+      await addNote({
+        id: `note_${Date.now()}`,
+        user_id: user.id,
         title: text.split('\n')[0].slice(0, 60) || 'Quick Note',
-        content: text, tags: [], attachments: [], linked_note_ids: [],
-        is_pinned: false, is_archived: false, created_at: now, updated_at: now,
-      };
-      await addNote(note);
+        content: text,
+        tags: [],
+        attachments: [],
+        linked_note_ids: [],
+        is_pinned: false,
+        is_archived: false,
+        created_at: now,
+        updated_at: now,
+      });
     } else if (type === 'task') {
-      const task: Task = {
-        id: `task_${Date.now()}`, user_id: user.id,
-        title: text.trim(), status: 'todo', priority: 'none',
-        subtasks: [], tags: [], is_starred: false, created_at: now, updated_at: now,
-      };
-      await addTask(task);
+      await addTask({
+        id: `task_${Date.now()}`,
+        user_id: user.id,
+        title: text.trim(),
+        status: 'todo',
+        priority: 'none',
+        subtasks: [],
+        tags: [],
+        is_starred: false,
+        created_at: now,
+        updated_at: now,
+      });
     } else {
-      const project: Project = {
-        id: `proj_${Date.now()}`, user_id: user.id,
-        name: text.trim(), description: '', color: '#00FF9D',
+      await addProject({
+        id: `proj_${Date.now()}`,
+        user_id: user.id,
+        name: text.trim(),
+        description: '',
+        color: C.accent,
         icon: text.trim().charAt(0).toUpperCase(),
-        status: 'active', task_ids: [], note_ids: [], created_at: now, updated_at: now,
-      };
-      await addProject(project);
+        status: 'active',
+        task_ids: [],
+        note_ids: [],
+        created_at: now,
+        updated_at: now,
+      });
     }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -65,79 +86,133 @@ export default function QuickCaptureModal() {
     router.back();
   };
 
-  const placeholder = type === 'note' ? 'Write your note...' : type === 'task' ? 'What needs to be done?' : 'Project name...';
+  const placeholder =
+    type === 'note' ? 'Write your note...' : type === 'task' ? 'What needs to be done?' : 'Project name...';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.bg }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <View style={styles.handle} />
-        <View style={styles.header}>
-          <Text style={styles.title}>Quick Capture</Text>
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-            <Text style={styles.closeTxt}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.typeToggle}>
-          {TYPES.map((t) => (
-            <TouchableOpacity
-              key={t.key}
-              style={[styles.typeBtn, type === t.key && styles.typeBtnActive]}
-              onPress={() => setType(t.key)}
-            >
-              <View style={[styles.typeBadge, type === t.key && styles.typeBadgeActive]}>
-                <Text style={[styles.typeBadgeText, type === t.key && styles.typeBadgeTextActive]}>{t.letter}</Text>
-              </View>
-              <Text style={[styles.typeLabel, type === t.key && styles.typeLabelActive]}>{t.label}</Text>
+        <ClayCard style={styles.sheet}>
+          <View style={styles.handle} />
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: C.textPrimary }]}>Quick Capture</Text>
+            <TouchableOpacity onPress={() => router.back()} style={[styles.closeBtn, { borderColor: C.border }]}>
+              <Text style={[styles.closeTxt, { color: C.textMuted }]}>✕</Text>
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
 
-        <TextInput
-          style={styles.input}
-          value={text}
-          onChangeText={setText}
-          placeholder={placeholder}
-          placeholderTextColor={Colors.textMuted}
-          multiline={type !== 'project'}
-          autoFocus
-        />
+          <View style={styles.typeToggle}>
+            {TYPES.map((t) => (
+              <TouchableOpacity
+                key={t.key}
+                style={[
+                  styles.typeBtn,
+                  { borderColor: C.border, backgroundColor: C.bgCardAlt },
+                  type === t.key && { backgroundColor: C.accentDim, borderColor: C.borderGlow },
+                ]}
+                onPress={() => setType(t.key)}
+              >
+                <View
+                  style={[
+                    styles.typeBadge,
+                    { borderColor: C.textMuted },
+                    type === t.key && { backgroundColor: C.accent, borderColor: C.accent },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.typeBadgeText,
+                      { color: C.textMuted },
+                      type === t.key && { color: C.bg },
+                    ]}
+                  >
+                    {t.letter}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.typeLabel,
+                    { color: C.textSecondary },
+                    type === t.key && { color: C.accent },
+                  ]}
+                >
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        <View style={styles.footer}>
+          <TextInput
+            style={[styles.input, { color: C.textPrimary, backgroundColor: C.bgCardDeep, borderColor: C.border }]}
+            value={text}
+            onChangeText={setText}
+            placeholder={placeholder}
+            placeholderTextColor={C.textMuted}
+            multiline={type !== 'project'}
+            autoFocus
+          />
+
           <GlowButton
             label={`Save ${currentType.label}`}
             onPress={handleCapture}
             loading={saving}
             disabled={!text.trim()}
             size="lg"
-            style={styles.saveBtn}
+            fullWidth
           />
-        </View>
+        </ClayCard>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgCard },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.textMuted, alignSelf: 'center', marginTop: 10, marginBottom: 4 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
-  title: { ...Typography.headingMd, color: Colors.textPrimary, fontWeight: '700' },
-  closeBtn: { padding: 8 },
-  closeTxt: { fontSize: 16, color: Colors.textMuted },
-  typeToggle: { flexDirection: 'row', gap: 8, paddingHorizontal: Spacing.md, marginBottom: Spacing.md },
-  typeBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    paddingVertical: 11, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border,
+  container: { flex: 1, padding: Spacing.md },
+  sheet: { flex: 1, padding: Spacing.md, gap: Spacing.sm },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(148,163,184,0.5)',
+    alignSelf: 'center',
+    marginBottom: 4,
   },
-  typeBtnActive: { backgroundColor: Colors.accentDim, borderColor: Colors.borderGlow },
-  typeBadge: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: Colors.textMuted, alignItems: 'center', justifyContent: 'center' },
-  typeBadgeActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  typeBadgeText: { fontSize: 10, fontWeight: '800', color: Colors.textMuted },
-  typeBadgeTextActive: { color: Colors.bg },
-  typeLabel: { ...Typography.bodyMd, color: Colors.textSecondary, fontWeight: '600' },
-  typeLabelActive: { color: Colors.accent },
-  input: { flex: 1, paddingHorizontal: Spacing.md, paddingTop: 4, ...Typography.bodyLg, color: Colors.textPrimary, lineHeight: 26, textAlignVertical: 'top' },
-  footer: { padding: Spacing.md },
-  saveBtn: { width: '100%' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  title: { ...Typography.headingMd, fontWeight: '700' },
+  closeBtn: { padding: 8, borderRadius: Radius.md, borderWidth: 1 },
+  closeTxt: { fontSize: 16 },
+  typeToggle: { flexDirection: 'row', gap: 8 },
+  typeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 11,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+  },
+  typeBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  typeBadgeText: { fontSize: 10, fontWeight: '800' },
+  typeLabel: { ...Typography.bodyMd, fontWeight: '600' },
+  input: {
+    flex: 1,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    ...Typography.bodyLg,
+    lineHeight: 26,
+    textAlignVertical: 'top',
+  },
 });

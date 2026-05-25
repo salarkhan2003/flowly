@@ -1,15 +1,16 @@
 import { Redirect } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import { useAuthStore } from '../stores/authStore';
-import { Colors } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
 
 export default function Index() {
   const { isLoading, isOnboarded } = useAuthStore();
+  const { C } = useTheme();
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={Colors.accent} size="large" />
+      <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={C.accent} size="large" />
       </View>
     );
   }

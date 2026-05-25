@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { showConfirm } from "../../lib/alert";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
@@ -38,7 +39,15 @@ export default function NoteEditorScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.back();
   };
-  const handleDelete = () => { Alert.alert("Delete Note", "This cannot be undone.", [{ text: "Cancel", style: "cancel" },{ text: "Delete", style: "destructive", onPress: async () => { if (!isNew) await deleteNote(id); router.back(); } }]); };
+  const handleDelete = () => {
+    showConfirm({
+      title: 'Delete note',
+      message: 'This cannot be undone.',
+      destructive: true,
+      confirmLabel: 'Delete',
+      onConfirm: async () => { if (!isNew) await deleteNote(id); router.back(); },
+    });
+  };
   const handleAI = async (action) => { if (!content) return; setAiLoading(true); setAiResult(""); try { setAiResult(await runInlineAction(action, content)); } catch { setAiResult("AI action failed."); } setAiLoading(false); };
   const addTag = () => { const t = tagInput.trim().toLowerCase().replace(/\s+/g, "-"); if (t && !tags.includes(t)) setTags([...tags, t]); setTagInput(""); };
   return (

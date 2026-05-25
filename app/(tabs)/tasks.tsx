@@ -3,7 +3,7 @@ import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from '
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TaskItem } from '../../components/tasks/TaskItem';
-import { EmptyState, FAB } from '../../components/ui';
+import { EmptyState, FAB, ScreenHeader } from '../../components/ui';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { useTasksStore } from '../../stores/tasksStore';
@@ -64,12 +64,8 @@ export default function TasksScreen() {
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: C.bg }]}>
-      {/* Header */}
-      <View style={s.header}>
-        <View>
-          <Text style={[s.title, { color: C.textPrimary }]}>Tasks</Text>
-          <Text style={[s.sub, { color: C.textMuted }]}>{activeTasks} active</Text>
-        </View>
+      <ScreenHeader title="Tasks" subtitle={`${activeTasks} active`} badge={activeTasks} />
+      <View style={s.viewRow}>
         <View style={[s.viewToggle, { backgroundColor: C.bgCard, borderColor: C.border }]}>
           {(['list', 'kanban'] as ViewMode[]).map((v) => (
             <TouchableOpacity
@@ -135,16 +131,14 @@ export default function TasksScreen() {
         </ScrollView>
       )}
 
-      <FAB onPress={() => router.push('/tasks/new' as any)} />
+      <FAB mode="task" />
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.sm },
-  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
-  sub: { fontSize: 12, fontWeight: '500', marginTop: 2 },
+  viewRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: Spacing.md, marginBottom: Spacing.sm },
   viewToggle: { flexDirection: 'row', gap: 2, borderRadius: Radius.md, padding: 4, borderWidth: 1 },
   toggleBtn: { padding: 8, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
   filterScroll: { maxHeight: 46 },

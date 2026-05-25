@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ClayCard } from '../../components/ui';
+import { ClayCard, ScreenHeader } from '../../components/ui';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { useNotesStore } from '../../stores/notesStore';
@@ -13,12 +13,15 @@ import { useTasksStore } from '../../stores/tasksStore';
 import { useProjectsStore } from '../../stores/projectsStore';
 import { SearchResult, SearchResultType } from '../../types';
 
-const TYPE_COLORS: Record<SearchResultType, string> = {
-  note: '#4D9FFF',
-  task: '#00B86B',
-  project: '#B44DFF',
-  event: '#FFB830',
-};
+function getTypeColor(type: SearchResultType, C: ReturnType<typeof useTheme>['C']) {
+  const map: Record<SearchResultType, string> = {
+    note: C.pastelSky,
+    task: C.pastelMint,
+    project: C.pastelLavender,
+    event: C.pastelPeach,
+  };
+  return map[type];
+}
 
 function NoteIcon({ color }: { color: string }) {
   return (
@@ -95,9 +98,7 @@ export default function SearchScreen() {
     <SafeAreaView style={[s.container, { backgroundColor: C.bg }]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
-        <View style={s.header}>
-          <Text style={[s.title, { color: C.textPrimary }]}>Search</Text>
-        </View>
+        <ScreenHeader showBack title="Search" subtitle="Notes, tasks & projects" />
 
         {/* Search input — NOT using GlowInput to avoid focus issues */}
         <View style={[s.inputWrap, { backgroundColor: C.bgCard, borderColor: C.borderGlow }]}>
@@ -152,9 +153,9 @@ export default function SearchScreen() {
                   {/* Quick stats */}
                   <View style={s.statsRow}>
                     {[
-                      { label: 'Notes', count: notes.length, color: TYPE_COLORS.note },
-                      { label: 'Tasks', count: tasks.length, color: TYPE_COLORS.task },
-                      { label: 'Projects', count: projects.length, color: TYPE_COLORS.project },
+                      { label: 'Notes', count: notes.length, color: getTypeColor('note', C) },
+                      { label: 'Tasks', count: tasks.length, color: getTypeColor('task', C) },
+                      { label: 'Projects', count: projects.length, color: getTypeColor('project', C) },
                     ].map((item) => (
                       <View key={item.label} style={[s.statPill, { backgroundColor: item.color + '15', borderColor: item.color + '40' }]}>
                         <View style={[s.statDot, { backgroundColor: item.color }]} />
@@ -175,7 +176,7 @@ export default function SearchScreen() {
             </View>
           }
           renderItem={({ item: result }) => {
-            const color = TYPE_COLORS[result.type];
+            const color = getTypeColor(result.type, C);
             return (
               <TouchableOpacity onPress={() => handleResultPress(result)} activeOpacity={0.8}>
                 <ClayCard style={s.resultCard}>

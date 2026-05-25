@@ -3,7 +3,7 @@ import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NoteCard } from '../../components/notes/NoteCard';
-import { EmptyState, FAB, GlowInput } from '../../components/ui';
+import { EmptyState, FAB, GlowInput, ScreenHeader } from '../../components/ui';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { useNotesStore } from '../../stores/notesStore';
@@ -35,16 +35,11 @@ export default function NotesScreen() {
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: C.bg }]}>
-      {/* Header */}
-      <View style={s.header}>
-        <View>
-          <Text style={[s.title, { color: C.textPrimary }]}>Notes</Text>
-          <Text style={[s.sub, { color: C.textMuted }]}>{notes.filter((n) => !n.is_archived).length} notes</Text>
-        </View>
-        <View style={[s.countPill, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}>
-          <Text style={[s.countTxt, { color: C.accent }]}>{notes.filter((n) => !n.is_archived).length}</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title="Notes"
+        subtitle={`${notes.filter((n) => !n.is_archived).length} saved locally`}
+        badge={notes.filter((n) => !n.is_archived).length}
+      />
 
       {/* Search */}
       <GlowInput
@@ -80,18 +75,13 @@ export default function NotesScreen() {
           <EmptyState title="No notes yet" subtitle="Tap + to create your first note" />
         }
       />
-      <FAB onPress={() => router.push('/notes/new' as any)} />
+      <FAB mode="note" />
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.sm },
-  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
-  sub: { fontSize: 12, fontWeight: '500', marginTop: 2 },
-  countPill: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 1 },
-  countTxt: { fontSize: 14, fontWeight: '700' },
   search: { marginHorizontal: Spacing.md, marginBottom: Spacing.sm },
   filters: { flexDirection: 'row', gap: 8, paddingHorizontal: Spacing.md, marginBottom: Spacing.sm },
   filterBtn: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: Radius.full, borderWidth: 1 },

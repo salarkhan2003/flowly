@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Radius, Spacing, Typography } from '../../constants/theme';
+import { ScreenHeader } from '../../components/ui';
 import { useTheme } from '../../hooks/useTheme';
 import { useTasksStore } from '../../stores/tasksStore';
 import { useProjectsStore } from '../../stores/projectsStore';
@@ -34,8 +35,8 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: C.bg }]}>
+      <ScreenHeader showBack title="Calendar" subtitle="Tasks & project dates" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
-        {/* Month nav */}
         <View style={s.header}>
           <TouchableOpacity onPress={() => setCurrentDate(subMonths(currentDate, 1))} style={s.navBtn}>
             <Text style={[s.navTxt, { color: C.accent }]}>{'<'}</Text>
@@ -86,7 +87,7 @@ export default function CalendarScreen() {
                       <View key={`t${i}`} style={[s.dot, { backgroundColor: t.priority === 'high' ? C.danger : t.priority === 'medium' ? C.warning : C.accent }]} />
                     ))}
                     {dayProjects.slice(0, 1).map((_, i) => (
-                      <View key={`p${i}`} style={[s.dot, { backgroundColor: '#B44DFF' }]} />
+                      <View key={`p${i}`} style={[s.dot, { backgroundColor: C.pastelPeach }]} />
                     ))}
                   </View>
                 )}

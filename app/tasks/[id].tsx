@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { showConfirm } from '../../lib/alert';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -66,10 +67,13 @@ export default function TaskDetailScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete Task', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => { if (!isNew) await deleteTask(id); router.back(); } },
-    ]);
+    showConfirm({
+      title: 'Delete task',
+      message: 'This cannot be undone.',
+      destructive: true,
+      confirmLabel: 'Delete',
+      onConfirm: async () => { if (!isNew) await deleteTask(id); router.back(); },
+    });
   };
 
   const addSubtask = () => {

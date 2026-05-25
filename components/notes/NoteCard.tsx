@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Alert, Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { showConfirm } from '../../lib/alert';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Tag } from '../ui';
@@ -34,10 +35,16 @@ export function NoteCard({ note, compact = false }: NoteCardProps) {
 
   const handleDelete = () => {
     setShowActions(false);
-    Alert.alert('Delete Note', `Delete "${note.title || 'Untitled'}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); deleteNote(note.id); } },
-    ]);
+    showConfirm({
+      title: 'Delete note',
+      message: `Remove "${note.title || 'Untitled'}"? This cannot be undone.`,
+      destructive: true,
+      confirmLabel: 'Delete',
+      onConfirm: () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        deleteNote(note.id);
+      },
+    });
   };
 
   const preview = note.content.replace(/[#*`>\-]/g, '').slice(0, 100);

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Alert, Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { showConfirm } from '../../lib/alert';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { PriorityBadge } from '../ui';
@@ -41,10 +42,16 @@ export function TaskItem({ task }: { task: Task }) {
 
   const handleDelete = () => {
     setShowActions(false);
-    Alert.alert('Delete Task', `Delete "${task.title}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); deleteTask(task.id); } },
-    ]);
+    showConfirm({
+      title: 'Delete task',
+      message: `Remove "${task.title}"? This cannot be undone.`,
+      destructive: true,
+      confirmLabel: 'Delete',
+      onConfirm: () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        deleteTask(task.id);
+      },
+    });
   };
 
   const isDone = task.status === 'done';

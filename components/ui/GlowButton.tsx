@@ -59,8 +59,9 @@ export function GlowButton({
   };
 
   const getShadow = () => {
-    if (variant === 'primary') return { shadowColor: C.accent, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 18, elevation: 10 };
-    if (variant === 'cyan') return { shadowColor: C.cyan, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 14, elevation: 8 };
+    if (variant === 'primary') return { shadowColor: C.accent, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 22, elevation: 12 };
+    if (variant === 'cyan') return { shadowColor: C.cyan, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.38, shadowRadius: 18, elevation: 10 };
+    if (variant === 'danger') return { shadowColor: C.danger, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 14, elevation: 8 };
     return {};
   };
 
