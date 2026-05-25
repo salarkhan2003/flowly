@@ -2,6 +2,6 @@
   "latestVersion": "1.0.1",
   "latestVersionCode": 2,
   "apkUrl": "https://github.com/salarkhan2003/flowly/releases/latest/download/Flowly.apk",
-  "changelog": "• Performance and stability improvements\n• Smarter home update notifications\n• Form and keyboard fixes",
+  "changelog": "• Fixed keyboard jumping\n• Added Join Team forms\n• Bug report forms\n• Light theme default",
   "forceUpdate": false
 }
