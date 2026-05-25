@@ -1,7 +1,7 @@
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import { Alert, Linking } from 'react-native';
-import { getUpdateManifestUrl } from '../constants/updates';
+import { getUpdateManifestUrl, GITHUB_RELEASES_API_URL } from '../constants/updates';
 import type { UpdateCheckPolicy } from '../types';
 import { storage } from './storage';
 
@@ -24,7 +24,7 @@ export interface UpdateCheckResult {
 }
 
 const LAST_CHECK_KEY = 'update_last_check';
-const GITHUB_RELEASES_URL = 'https://api.github.com/repos/salarkhan2003/flowly/releases/latest';
+const GITHUB_RELEASES_URL = GITHUB_RELEASES_API_URL;
 
 /** Shipped with the app — used if remote manifest is unreachable. */
 const BUNDLED_MANIFEST: UpdateManifest = require('../release/version.json');
