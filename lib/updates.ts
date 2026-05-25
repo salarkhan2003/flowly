@@ -195,13 +195,17 @@ export async function fetchAvailableUpdate(): Promise<UpdateManifest | null> {
 }
 
 export async function openApkDownload(url: string): Promise<boolean> {
+  const target = url?.trim() || DEFAULT_APK_URL;
   try {
-    const can = await Linking.canOpenURL(url);
-    if (!can) return false;
-    await Linking.openURL(url);
+    await Linking.openURL(target);
     return true;
   } catch {
-    return false;
+    try {
+      await Linking.openURL(DEFAULT_APK_URL);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 

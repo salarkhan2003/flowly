@@ -134,7 +134,14 @@ Creation uses structured actions server-side; you only see plain confirmations.
 
 ## Forms & community
 
-All forms are **optional**. The home **Join team** banner appears under the header at most once per 24 hours after tapping **Later**; it hides permanently after a successful join submit.
+All forms are **optional**. Home header notifications:
+
+| Banner | When | Actions |
+|--------|------|---------|
+| **Join team** | Until joined or **Later** (24h snooze) | Join → form · Later |
+| **Update available** | When GitHub / `version.json` has a newer APK | Tap → Profile **App & Updates** · **Download** → browser · **Later** (24h snooze per version) |
+
+Updates are checked on launch and when you open Home. APK downloads open the [GitHub release](https://github.com/salarkhan2003/flowly/releases/latest) in Chrome/your browser.
 
 - **Join team:** Name, email, mobile, age range (chips), gender (chips)
 - **Feedback:** Category, title, details, reply email

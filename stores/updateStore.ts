@@ -143,6 +143,8 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
           isChecking: false,
           lastMessage: `Update available: v${result.manifest.latestVersion}`,
         });
+        const { usePrefsStore } = require('./prefsStore');
+        usePrefsStore.getState().refreshUpdateBannerVisibility(result.manifest.latestVersion);
 
         const showModal =
           options?.showAlert ??
@@ -169,6 +171,8 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
           isChecking: false,
           lastMessage: result.message ?? 'Up to date',
         });
+        const { usePrefsStore } = require('./prefsStore');
+        usePrefsStore.getState().refreshUpdateBannerVisibility(null);
         if (options?.showAlert) {
           get().showUpdateModal({
             kind: 'up_to_date',
@@ -190,6 +194,8 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
         isChecking: false,
         lastMessage: errMsg,
       });
+      const { usePrefsStore } = require('./prefsStore');
+      usePrefsStore.getState().refreshUpdateBannerVisibility(null);
       if (options?.showAlert) {
         get().showUpdateModal({
           kind: 'error',

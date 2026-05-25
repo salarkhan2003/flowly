@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Animated, Image, ScrollView, Share, StyleSheet,
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { showConfirm, showError } from '../../lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { TelegramJoinButton } from '../../components/forms/TelegramJoinButton';
 import { ClayCard } from '../../components/ui';
 import { getColors, Spacing, Radius } from '../../constants/theme';
@@ -92,7 +92,11 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: C.bg }]}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
 
         {/* Avatar + name */}
         <View style={styles.avatarSection}>
@@ -249,6 +253,11 @@ export default function ProfileScreen() {
         </ClayCard>
 
         {/* App & updates */}
+        <View
+          onLayout={(e) => {
+            updatesSectionY.current = e.nativeEvent.layout.y;
+          }}
+        >
         <ClayCard style={[styles.section, { backgroundColor: C.bgCard, borderColor: updateAvailable ? C.borderGlow : C.border }]} glowing={!!updateAvailable}>
           <View style={styles.sectionContent}>
             <View style={styles.sectionTitleRow}>
@@ -285,7 +294,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.updateBannerBody, { color: C.textSecondary }]} numberOfLines={3}>
                   {updateAvailable.changelog}
                 </Text>
-                <Text style={[styles.updateBannerAction, { color: C.accent }]}>Tap to download APK →</Text>
+                <Text style={[styles.updateBannerAction, { color: C.accent }]}>Opens GitHub APK in your browser →</Text>
               </TouchableOpacity>
             ) : (
               <Text style={[styles.aiNote, { color: C.textMuted }]}>
@@ -334,6 +343,7 @@ export default function ProfileScreen() {
             ))}
           </View>
         </ClayCard>
+        </View>
 
         {/* Data */}
         <ClayCard style={[styles.section, { backgroundColor: C.bgCard, borderColor: C.border }]}>

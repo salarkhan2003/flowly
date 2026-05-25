@@ -3,6 +3,8 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { JoinTeamBanner } from '../../components/community/JoinTeamBanner';
+import { UpdateAvailableBanner } from '../../components/home/UpdateAvailableBanner';
+import { useUpdateStore } from '../../stores/updateStore';
 import { DailyBriefCard } from '../../components/home/DailyBriefCard';
 import { NoteCard } from '../../components/notes/NoteCard';
 import { TaskItem } from '../../components/tasks/TaskItem';
@@ -84,7 +86,12 @@ export default function HomeScreen() {
   const { tasks, loadTasks, getTodayTasks } = useTasksStore();
   const { projects, loadProjects } = useProjectsStore();
   const { dailyBrief, setDailyBrief } = useAIStore();
+  const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
   const firstName = user?.name?.split(' ')[0] ?? 'there';
+
+  useEffect(() => {
+    checkForUpdates().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (user?.id) {
@@ -139,6 +146,7 @@ export default function HomeScreen() {
               <View style={[styles.searchRing, { borderColor: C.textSecondary }]} />
             </TouchableOpacity>
           </View>
+          <UpdateAvailableBanner />
           <JoinTeamBanner />
         </View>
 
