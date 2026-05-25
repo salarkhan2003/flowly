@@ -123,23 +123,24 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: C.bg }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View>
-            <Text style={[styles.date, { color: C.textMuted }]}>{today}</Text>
-            <Text style={[styles.hello, { color: C.textSecondary }]}>
-              Good {getTimeOfDay()},
-            </Text>
-            <Text style={[styles.name, { color: C.textPrimary }]}>{firstName}</Text>
+        <View style={styles.headerBlock}>
+          <View style={styles.header}>
+            <View>
+              <Text style={[styles.date, { color: C.textMuted }]}>{today}</Text>
+              <Text style={[styles.hello, { color: C.textSecondary }]}>
+                Good {getTimeOfDay()},
+              </Text>
+              <Text style={[styles.name, { color: C.textPrimary }]}>{firstName}</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.searchBtn, { backgroundColor: C.bgCard, borderColor: C.border }]}
+              onPress={() => router.push('/hub/search')}
+            >
+              <View style={[styles.searchRing, { borderColor: C.textSecondary }]} />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={[styles.searchBtn, { backgroundColor: C.bgCard, borderColor: C.border }]}
-            onPress={() => router.push('/hub/search')}
-          >
-            <View style={[styles.searchRing, { borderColor: C.textSecondary }]} />
-          </TouchableOpacity>
+          <JoinTeamBanner />
         </View>
-
-        <JoinTeamBanner />
 
         <View style={styles.statsRow}>
           <StatPill label="Tasks" value={activeTasks} color={C.pastelMint} onPress={() => router.push('/(tabs)/tasks')} />
@@ -196,11 +197,11 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
+  headerBlock: { marginBottom: Spacing.lg, gap: Spacing.sm },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing.lg,
   },
   date: { fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
   hello: { fontSize: 16, marginTop: 4 },

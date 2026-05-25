@@ -82,6 +82,9 @@ export const useAuthStore = create<AppState>((set, get) => ({
     useAIStore.setState({ conversations: [], activeConversationId: null, dailyBrief: null, appContext: {} });
     const { usePrefsStore } = require('./prefsStore');
     usePrefsStore.getState().resetPrefs();
+    await storage.remove('team_banner_snooze_until');
+    await storage.remove('team_joined');
+    await storage.remove('telegram_prompt_dismissed');
     set({ user: null, isOnboarded: false, isLoading: false });
   },
 }));

@@ -134,7 +134,7 @@ Creation uses structured actions server-side; you only see plain confirmations.
 
 ## Forms & community
 
-All forms are **optional**. Users can skip, ignore the home banner, or dismiss the Telegram prompt.
+All forms are **optional**. The home **Join team** banner appears under the header at most once per 24 hours after tapping **Later**; it hides permanently after a successful join submit.
 
 - **Join team:** Name, email, mobile, age range (chips), gender (chips)
 - **Feedback:** Category, title, details, reply email

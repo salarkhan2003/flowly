@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   StyleSheet,
   Text,
   TextInput,
@@ -13,8 +14,8 @@ import * as Application from 'expo-application';
 import * as Haptics from 'expo-haptics';
 import { FormScrollLayout } from '../../components/forms/FormScrollLayout';
 import { OptionChips } from '../../components/forms/OptionChips';
+import { StableFormField } from '../../components/forms/StableFormField';
 import { SuccessCelebration } from '../../components/forms/SuccessCelebration';
-import { GlowInput } from '../../components/ui/GlowInput';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
@@ -31,18 +32,20 @@ const CATEGORY_OPTIONS = [
 
 export default function FeedbackScreen() {
   const { C } = useTheme();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const initialEmail = useRef(user?.email ?? '').current;
 
   const [category, setCategory] = useState<(typeof CATEGORY_OPTIONS)[number]['value'] | ''>('');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [email, setEmail] = useState(user?.email ?? '');
+  const [email, setEmail] = useState(initialEmail);
   const [submitting, setSubmitting] = useState(false);
   const [succeeded, setSucceeded] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
+    Keyboard.dismiss();
     if (!message.trim() && !title.trim()) {
-      showError('Add a message', 'Tell us what happened or what you’d like — we need at least a title or details.');
+      showError('Add a message', 'We need at least a title or details to send.');
       return;
     }
 
@@ -66,7 +69,7 @@ export default function FeedbackScreen() {
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSucceeded(true);
-  };
+  }, [message, title, category, email, user?.name]);
 
   if (succeeded) {
     return (
@@ -91,7 +94,7 @@ export default function FeedbackScreen() {
       <ScreenHeader title="Bugs & feedback" showBack />
       <FormScrollLayout>
         <Text style={[styles.intro, { color: C.textSecondary }]}>
-          Everything here is optional. Share bugs, ideas, or praise — we read every submission.
+          Everything is optional. Share bugs, ideas, or praise.
         </Text>
 
         <OptionChips
@@ -102,11 +105,12 @@ export default function FeedbackScreen() {
           optional
         />
 
-        <GlowInput
+        <StableFormField
           label="Title (optional)"
           value={title}
           onChangeText={setTitle}
           placeholder="Short summary"
+          returnKeyType="next"
         />
 
         <View style={styles.msgWrap}>
@@ -126,18 +130,21 @@ export default function FeedbackScreen() {
             placeholderTextColor={C.textMuted}
             multiline
             textAlignVertical="top"
+            autoCorrect={false}
+            autoComplete="off"
+            importantForAutofill="no"
             blurOnSubmit={false}
           />
         </View>
 
-        <GlowInput
+        <StableFormField
           label="Reply email (optional)"
           value={email}
           onChangeText={setEmail}
           placeholder="you@email.com"
           keyboardType="email-address"
           autoCapitalize="none"
-          autoCorrect={false}
+          returnKeyType="done"
         />
 
         <TouchableOpacity
@@ -160,10 +167,10 @@ export default function FeedbackScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   intro: { fontSize: 14, lineHeight: 21 },
-  msgWrap: { gap: 8 },
+  msgWrap: { gap: 6 },
   msgLabel: { fontSize: 13, fontWeight: '600', marginLeft: 2 },
   msgInput: {
-    minHeight: 140,
+    minHeight: 120,
     borderRadius: Radius.lg,
     borderWidth: 1.5,
     padding: 16,
@@ -175,9 +182,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: Spacing.sm,
+    marginTop: Spacing.xs,
   },
-  submitOff: { opacity: 0.7 },
+  submitOff: { opacity: 0.65 },
   submitTxt: { fontSize: 17, fontWeight: '800' },
   doneBtn: {
     marginHorizontal: Spacing.md,
