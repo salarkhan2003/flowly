@@ -9,6 +9,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { Note } from '../../types';
 import { useNotesStore } from '../../stores/notesStore';
 import { formatDistanceToNow } from 'date-fns';
+import { htmlToPlainText } from '../../lib/noteContent';
 
 interface NoteCardProps { note: Note; compact?: boolean; }
 
@@ -47,7 +48,7 @@ export function NoteCard({ note, compact = false }: NoteCardProps) {
     });
   };
 
-  const preview = note.content.replace(/[#*`>\-]/g, '').slice(0, 100);
+  const preview = htmlToPlainText(note.content).slice(0, 100);
   const isPinned = note.is_pinned;
 
   return (

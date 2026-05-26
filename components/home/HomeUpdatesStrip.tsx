@@ -1,4 +1,5 @@
 import React from 'react';
+import { isUpdateAvailable } from '../../lib/updates';
 import { usePrefsStore } from '../../stores/prefsStore';
 import { useUpdateStore } from '../../stores/updateStore';
 import { CheckUpdatesBanner } from './CheckUpdatesBanner';
@@ -9,7 +10,7 @@ export function HomeUpdatesStrip() {
   const available = useUpdateStore((s) => s.available);
   const showUpdateBanner = usePrefsStore((s) => s.showUpdateBanner);
 
-  if (available && showUpdateBanner) {
+  if (available && showUpdateBanner && isUpdateAvailable(available)) {
     return <UpdateAvailableBanner />;
   }
 

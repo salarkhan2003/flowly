@@ -89,10 +89,13 @@ export default function HomeScreen() {
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
+  const refreshInstalledVersion = useUpdateStore((s) => s.refreshInstalledVersion);
+
   useFocusEffect(
     useCallback(() => {
-      checkForUpdates({ force: true }).catch(() => {});
-    }, [checkForUpdates])
+      refreshInstalledVersion();
+      checkForUpdates({ force: false }).catch(() => {});
+    }, [checkForUpdates, refreshInstalledVersion])
   );
 
   useEffect(() => {

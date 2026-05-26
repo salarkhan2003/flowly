@@ -3,7 +3,7 @@ export default {
   expo: {
     name: 'Flowly',
     slug: 'salar',
-    version: '1.0.2',
+    version: '1.0.3',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -23,7 +23,7 @@ export default {
         backgroundColor: '#050508',
       },
       package: 'com.flowly.app',
-      versionCode: 3,
+      versionCode: 4,
       softwareKeyboardLayoutMode: 'resize',
     },
     web: {

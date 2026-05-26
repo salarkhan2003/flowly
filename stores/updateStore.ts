@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 import {
+  cacheInstalledVersionCode,
   checkForAppUpdate,
+  clearResolvedVersionCache,
   fetchLatestReleaseManifest,
   getInstalledVersionCode,
   getInstalledVersionName,
+  isUpdateAvailable,
   markUpdateCheckComplete,
   openApkDownload,
   shouldRunUpdateCheck,
@@ -35,7 +38,6 @@ const CLOSED_MODAL: UpdateModalState = {
 
 interface UpdateState {
   available: UpdateManifest | null;
-  /** Remote latest from version.json — used for share link & display. */
   latestRelease: UpdateManifest;
   isChecking: boolean;
   lastMessage: string | null;
@@ -56,6 +58,11 @@ function getPolicy(): UpdateCheckPolicy {
   return useAuthStore.getState().user?.settings?.update_check_policy ?? 'notify';
 }
 
+function syncBanners(manifest: UpdateManifest | null) {
+  const { usePrefsStore } = require('./prefsStore');
+  usePrefsStore.getState().syncHomeUpdateBanners(manifest);
+}
+
 export const useUpdateStore = create<UpdateState>((set, get) => ({
   available: null,
   latestRelease: BUNDLED_RELEASE,
@@ -67,8 +74,14 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
 
   refreshLatestRelease: async () => {
     try {
+      get().refreshInstalledVersion();
       const manifest = await fetchLatestReleaseManifest();
       set({ latestRelease: manifest });
+      const avail = get().available;
+      if (avail && !isUpdateAvailable(avail)) {
+        set({ available: null });
+        syncBanners(null);
+      }
     } catch {
       /* keep previous */
     }
@@ -89,54 +102,62 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
   hideUpdateModal: () => set({ modal: CLOSED_MODAL }),
 
   refreshInstalledVersion: () => {
+    clearResolvedVersionCache();
+    const name = getInstalledVersionName();
+    const code = getInstalledVersionCode();
+    cacheInstalledVersionCode().catch(() => {});
     set({
-      installedVersion: getInstalledVersionName(),
-      installedVersionCode: getInstalledVersionCode(),
+      installedVersion: name,
+      installedVersionCode: code,
     });
   },
 
   applyCheckResult: (outcome) => {
+    get().refreshInstalledVersion();
     if (outcome.manifest) {
       set({ latestRelease: outcome.manifest });
     }
-    if (outcome.updateAvailable && outcome.manifest) {
+    const manifest = outcome.manifest;
+    const hasUpdate = !!(manifest && isUpdateAvailable(manifest));
+    if (hasUpdate && manifest) {
       set({
-        available: outcome.manifest,
-        lastMessage: outcome.message ?? `Update available: v${outcome.manifest.latestVersion}`,
+        available: manifest,
+        lastMessage: outcome.message ?? `Update available: v${manifest.latestVersion}`,
       });
-      const { usePrefsStore } = require('./prefsStore');
-      usePrefsStore.getState().syncHomeUpdateBanners(outcome.manifest.latestVersion);
+      syncBanners(manifest);
     } else {
-      set({ available: null, lastMessage: outcome.message ?? null });
-      const { usePrefsStore } = require('./prefsStore');
-      usePrefsStore.getState().syncHomeUpdateBanners(null);
+      set({
+        available: null,
+        lastMessage: outcome.message ?? "You're on the latest version",
+      });
+      syncBanners(manifest ?? null);
     }
   },
 
   openUpdateDownload: async () => {
-    const { available } = get();
-    if (!available) {
+    const manifest = get().available ?? get().latestRelease;
+    if (!manifest || !isUpdateAvailable(manifest)) {
       get().showUpdateModal({
         kind: 'error',
         title: 'No update ready',
-        message: 'Check for updates first to get the download link.',
+        message: 'You are already on the latest version.',
       });
       return;
     }
-    const ok = await openApkDownload(available.apkUrl);
+    const ok = await openApkDownload(manifest.apkUrl);
     if (!ok) {
       get().showUpdateModal({
         kind: 'link_error',
         title: 'Could not open browser',
         message: 'Open this link manually in Chrome or Firefox:',
-        manifest: available,
+        manifest,
       });
     }
   },
 
   promptUpdate: () => {
     const { available, installedVersion } = get();
-    if (!available) {
+    if (!available || !isUpdateAvailable(available)) {
       get().checkForUpdates({ force: true, showAlert: true });
       return;
     }
@@ -157,6 +178,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
     const runCheck = options?.force || (await shouldRunUpdateCheck(policy));
     if (!runCheck && !options?.force) return;
 
+    get().refreshInstalledVersion();
     const installedVersion = getInstalledVersionName();
 
     if (options?.showAlert) {
@@ -172,31 +194,34 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
     try {
       const result = await checkForAppUpdate();
       await markUpdateCheckComplete();
+      get().refreshInstalledVersion();
 
       if (result.manifest) {
         set({ latestRelease: result.manifest });
       }
 
-      if (result.status === 'available' && result.manifest) {
+      const manifest = result.manifest;
+      const hasUpdate = !!(manifest && isUpdateAvailable(manifest));
+
+      if (hasUpdate && manifest) {
         set({
-          available: result.manifest,
+          available: manifest,
           isChecking: false,
-          lastMessage: `Update available: v${result.manifest.latestVersion}`,
+          lastMessage: `Update available: v${manifest.latestVersion}`,
         });
-        const { usePrefsStore } = require('./prefsStore');
-        await usePrefsStore.getState().syncHomeUpdateBanners(result.manifest.latestVersion);
+        syncBanners(manifest);
 
         const showModal =
           options?.showAlert ??
-          (policy === 'on_launch' || result.manifest.forceUpdate === true);
+          (policy === 'on_launch' || manifest.forceUpdate === true);
 
         if (showModal) {
           get().showUpdateModal({
             kind: 'available',
-            title: `Update Available: v${result.manifest.latestVersion}`,
-            message: result.manifest.changelog,
-            manifest: result.manifest,
-            force: result.manifest.forceUpdate,
+            title: `Update Available: v${manifest.latestVersion}`,
+            message: manifest.changelog,
+            manifest,
+            force: manifest.forceUpdate,
             installedVersion,
           });
         } else if (options?.showAlert) {
@@ -205,42 +230,20 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
         return;
       }
 
-      if (result.status === 'up_to_date') {
-        set({
-          available: null,
-          isChecking: false,
-          lastMessage: result.message ?? 'Up to date',
-        });
-        const { usePrefsStore } = require('./prefsStore');
-        await usePrefsStore.getState().syncHomeUpdateBanners(null);
-        if (options?.showAlert) {
-          get().showUpdateModal({
-            kind: 'up_to_date',
-            title: "You're up to date",
-            message:
-              result.message ??
-              `Flowly v${installedVersion} is the latest version on your channel.`,
-            installedVersion,
-          });
-        } else {
-          get().hideUpdateModal();
-        }
-        return;
-      }
-
-      const errMsg = result.message ?? 'Could not check for updates.';
       set({
         available: null,
         isChecking: false,
-        lastMessage: errMsg,
+        lastMessage: result.message ?? "You're on the latest version",
       });
-      const { usePrefsStore } = require('./prefsStore');
-      await usePrefsStore.getState().syncHomeUpdateBanners(null);
+      syncBanners(manifest ?? null);
+
       if (options?.showAlert) {
         get().showUpdateModal({
-          kind: 'error',
-          title: 'Update check failed',
-          message: errMsg,
+          kind: 'up_to_date',
+          title: "You're up to date",
+          message:
+            result.message ??
+            `Flowly v${installedVersion} (build ${getInstalledVersionCode()}) is current.`,
           installedVersion,
         });
       } else {
@@ -248,9 +251,8 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       }
     } catch {
       const msg = 'Something went wrong while checking for updates.';
-      set({ isChecking: false, lastMessage: msg });
-      const { usePrefsStore } = require('./prefsStore');
-      await usePrefsStore.getState().syncHomeUpdateBanners(null);
+      set({ isChecking: false, lastMessage: msg, available: null });
+      syncBanners(null);
       if (options?.showAlert) {
         get().showUpdateModal({
           kind: 'error',

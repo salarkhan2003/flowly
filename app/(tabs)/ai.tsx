@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated, FlatList, KeyboardAvoidingView, Modal, Platform,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
@@ -16,6 +16,7 @@ import { AIConversation, AIMessage } from '../../types';
 
 /** Space above floating tab bar when keyboard is closed */
 const TAB_BAR_CLEARANCE = 78;
+const INPUT_BAR_HEIGHT = 64;
 
 const SUGGESTIONS = [
   'What are my pending tasks?',
@@ -37,7 +38,7 @@ export default function AIScreen() {
   } = useAIStore();
 
   const [input, setInput] = useState('');
-  const { keyboardHeight, keyboardVisible } = useKeyboard();
+  const { keyboardVisible, keyboardHeight } = useKeyboard();
   const [showHistory, setShowHistory] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const dotAnim = useRef(new Animated.Value(0)).current;
@@ -58,7 +59,7 @@ export default function AIScreen() {
       projects: projects.map((p) => ({ name: p.name, status: p.status, description: p.description })),
       userName: user?.name,
     });
-  }, [notes.length, tasks.length, projects.length, user?.name]);
+  }, [notes, tasks, projects, user?.name]);
 
   useEffect(() => {
     if (!activeConversationId) {
@@ -135,17 +136,16 @@ export default function AIScreen() {
       </View>
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        style={s.chatWrap}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
-        {/* Messages list */}
         <ScrollView
           ref={scrollRef}
           style={s.msgs}
           contentContainerStyle={[
             s.msgsContent,
-            keyboardVisible && { paddingBottom: Math.max(keyboardHeight * 0.25, 24) },
+            { paddingBottom: INPUT_BAR_HEIGHT + (keyboardVisible ? 12 : TAB_BAR_CLEARANCE) },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
@@ -202,13 +202,15 @@ export default function AIScreen() {
           )}
         </ScrollView>
 
-        {/* Input bar — normal flow element, KAV lifts it above keyboard */}
         <View style={[s.bar, {
           backgroundColor: C.bgCard,
           borderTopColor: C.border,
-          paddingBottom: keyboardHeight > 0
-            ? keyboardHeight
+          paddingBottom: keyboardVisible
+            ? Math.max(insets.bottom, 10)
             : TAB_BAR_CLEARANCE + Math.max(insets.bottom, 0),
+          ...(keyboardVisible && Platform.OS === 'android'
+            ? { marginBottom: keyboardHeight }
+            : null),
         }]}>
           <TextInput
             style={[s.input, { backgroundColor: C.bgCardAlt, borderColor: C.border, color: C.textPrimary }]}
@@ -332,6 +334,7 @@ function HistItem({ conv, isActive, onSelect, onDelete, C }: {
 
 const s = StyleSheet.create({
   root: { flex: 1 },
+  chatWrap: { flex: 1, position: 'relative' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.md, paddingVertical: 12, borderBottomWidth: 1,

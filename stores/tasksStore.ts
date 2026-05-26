@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { Task, TaskStatus } from '../types';
+import { isOverdueDueDate, isSameCalendarDay } from '../lib/dates';
 import { storage } from '../lib/storage';
+import { Task, TaskStatus } from '../types';
 
 interface TasksState {
   tasks: Task[];
@@ -72,18 +73,17 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   getTasksByProject: (projectId) => get().tasks.filter((t) => t.project_id === projectId),
 
   getTodayTasks: () => {
-    const today = new Date().toDateString();
+    const today = new Date();
     return get().tasks.filter((t) => {
       if (!t.due_date || t.status === 'done') return false;
-      return new Date(t.due_date).toDateString() === today;
+      return isSameCalendarDay(t.due_date, today);
     });
   },
 
   getOverdueTasks: () => {
-    const now = new Date();
     return get().tasks.filter((t) => {
       if (!t.due_date || t.status === 'done') return false;
-      return new Date(t.due_date) < now;
+      return isOverdueDueDate(t.due_date);
     });
   },
 }));

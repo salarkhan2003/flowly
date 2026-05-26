@@ -5,6 +5,7 @@ import { GlowButton } from '../ui/GlowButton';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { getFlowlyDownloadUrl } from '../../lib/shareApp';
+import { isUpdateAvailable } from '../../lib/updates';
 import { useUpdateStore } from '../../stores/updateStore';
 
 function ChangelogLine({ line }: { line: string }) {
@@ -33,7 +34,7 @@ export function DownloadUpdateButton() {
   const { C } = useTheme();
   const available = useUpdateStore((s) => s.available);
 
-  if (!available) return null;
+  if (!available || !isUpdateAvailable(available)) return null;
 
   const url = getFlowlyDownloadUrl(available);
   const lines = available.changelog

@@ -70,63 +70,97 @@ function removeActionJson(text: string): string {
   return result ? (result.cleanReply || text) : text;
 }
 
-const CREATION_INTENT = /\b(create|add|make|new task|new note|new project|set up|schedule|remind me|build|start a)\b/i;
+function normalizeReply(reply: string): string {
+  return reply.replace(/```(?:json)?\s*([\s\S]*?)```/gi, '$1').trim();
+}
 
-async function parseAndExecuteActions(reply: string, userId: string, userMessage: string): Promise<string> {
-  // Guard: only parse if user message has explicit creation intent
-  if (!CREATION_INTENT.test(userMessage)) {
-    // Still strip any JSON the model accidentally included, but don't execute
-    return removeActionJson(reply);
+function actionConfirmation(action: Record<string, unknown>): string {
+  if (action.action === 'create_task') {
+    const title = String(action.title ?? 'New Task');
+    const pr = String(action.priority ?? 'none');
+    const due = action.due_date && action.due_date !== 'null' ? String(action.due_date) : null;
+    return `✅ **Task created:** "${title}"${pr !== 'none' ? ` · ${pr} priority` : ''}${due ? ` · due ${due}` : ''}\n\nOpen the Tasks tab to view it.`;
   }
+  if (action.action === 'create_note') {
+    const title = String(action.title ?? 'Untitled');
+    return `✅ **Note created:** "${title}"\n\nOpen the Notes tab to view and edit it.`;
+  }
+  if (action.action === 'create_project') {
+    const name = String(action.name ?? 'New Project');
+    return `✅ **Project created:** "${name}"\n\nOpen Projects from Home to manage it.`;
+  }
+  return '';
+}
 
-  const result = extractActionJson(reply);
+async function parseAndExecuteActions(reply: string, userId: string): Promise<string> {
+  const normalized = normalizeReply(reply);
+  const result = extractActionJson(normalized);
   if (!result) return reply;
 
   const { json: action, cleanReply } = result;
+  const actionType = String(action.action ?? '');
+
+  if (!['create_note', 'create_task', 'create_project'].includes(actionType)) {
+    return cleanReply || reply;
+  }
 
   try {
-    if (action.action === 'create_note') {
+    if (actionType === 'create_note') {
       await useNotesStore.getState().addNote({
-        id: `note_${Date.now()}`, user_id: userId,
+        id: `note_${Date.now()}`,
+        user_id: userId,
         title: String(action.title ?? 'Untitled'),
         content: String(action.content ?? ''),
         tags: Array.isArray(action.tags) ? action.tags.map(String) : [],
-        is_pinned: false, is_archived: false,
-        attachments: [], linked_note_ids: [],
-        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        is_pinned: false,
+        is_archived: false,
+        attachments: [],
+        linked_note_ids: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
-    } else if (action.action === 'create_task') {
+    } else if (actionType === 'create_task') {
       await useTasksStore.getState().addTask({
-        id: `task_${Date.now()}`, user_id: userId,
+        id: `task_${Date.now()}`,
+        user_id: userId,
         title: String(action.title ?? 'New Task'),
         status: 'todo',
         priority: (['high', 'medium', 'low', 'none'].includes(String(action.priority))
-          ? action.priority : 'none') as 'high' | 'medium' | 'low' | 'none',
-        due_date: action.due_date && action.due_date !== 'null' ? String(action.due_date) : undefined,
-        is_starred: false, subtasks: [], tags: [],
-        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+          ? action.priority
+          : 'medium') as 'high' | 'medium' | 'low' | 'none',
+        due_date:
+          action.due_date && action.due_date !== 'null' ? String(action.due_date) : undefined,
+        is_starred: false,
+        subtasks: [],
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
-    } else if (action.action === 'create_project') {
+    } else if (actionType === 'create_project') {
       const name = String(action.name ?? 'New Project');
       await useProjectsStore.getState().addProject({
-        id: `proj_${Date.now()}`, user_id: userId,
+        id: `proj_${Date.now()}`,
+        user_id: userId,
         name,
         description: String(action.description ?? ''),
-        color: String(action.color ?? '#00FF9D'),
+        color: String(action.color ?? '#5EEAD4'),
         icon: name.charAt(0).toUpperCase(),
-        status: 'active', task_ids: [], note_ids: [],
-        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        status: 'active',
+        task_ids: [],
+        note_ids: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
-    } else {
-      // Unknown action — return original reply untouched
-      return reply;
     }
   } catch {
-    return removeActionJson(reply);
+    return cleanReply || 'I tried to create that but something went wrong. Please try again.';
   }
 
-  // Return the clean reply (text before/after JSON), or a fallback confirmation
-  return cleanReply || 'Done!';
+  const confirm = actionConfirmation(action);
+  if (cleanReply && cleanReply.length > 3) {
+    return `${cleanReply}\n\n${confirm}`;
+  }
+  return confirm;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -217,7 +251,7 @@ export const useAIStore = create<AIState>((set, get) => ({
         appContext: get().appContext,
       });
 
-      const reply = await parseAndExecuteActions(rawReply, userId, content);
+      const reply = await parseAndExecuteActions(rawReply, userId);
 
       const assistantMsg: AIMessage = {
         id: `msg_${Date.now() + 1}`,

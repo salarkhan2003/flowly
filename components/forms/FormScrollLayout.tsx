@@ -4,6 +4,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  View,
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,29 +42,42 @@ export const FormScrollLayout = forwardRef<FormScrollLayoutRef, FormScrollLayout
     }));
 
     const bottomPad =
-      keyboardHeight > 0
-        ? keyboardHeight + 20 + keyboardExtraPad + footerClearance
-        : Spacing.xxl + insets.bottom + footerClearance;
+      Platform.OS === 'android'
+        ? Spacing.xl +
+          insets.bottom +
+          footerClearance +
+          (keyboardHeight > 0 ? keyboardExtraPad + 24 : keyboardExtraPad)
+        : keyboardHeight > 0
+          ? keyboardHeight + 24 + keyboardExtraPad + footerClearance
+          : Spacing.xxl + insets.bottom + footerClearance;
 
-    return (
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    const scroll = (
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomPad }, contentContainerStyle]}
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="interactive"
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
       >
-        <ScrollView
-          ref={scrollRef}
-          style={styles.scroll}
-          contentContainerStyle={[styles.content, { paddingBottom: bottomPad }, contentContainerStyle]}
-          keyboardShouldPersistTaps="always"
-          keyboardDismissMode="interactive"
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled
-        >
-          {children}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        {children}
+      </ScrollView>
     );
+
+    if (Platform.OS === 'ios') {
+      return (
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior="padding"
+          keyboardVerticalOffset={90}
+        >
+          {scroll}
+        </KeyboardAvoidingView>
+      );
+    }
+
+    return <View style={styles.flex}>{scroll}</View>;
   }
 );
 

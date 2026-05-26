@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Tag } from '../ui/Tag';
 import { Radius } from '../../constants/theme';
-import { useKeyboard } from '../../hooks/useKeyboard';
 import { useTheme } from '../../hooks/useTheme';
 
 export function TagsInput({
@@ -11,27 +10,19 @@ export function TagsInput({
   onChangeText,
   onAdd,
   onRemove,
+  onFocus,
 }: {
   tags: string[];
   value: string;
   onChangeText: (t: string) => void;
   onAdd: () => void;
   onRemove: (tag: string) => void;
+  onFocus?: () => void;
 }) {
   const { C } = useTheme();
-  const { keyboardHeight, keyboardVisible } = useKeyboard();
-  const [focused, setFocused] = useState(false);
-
-  const keyboardPad =
-    focused && keyboardVisible && keyboardHeight > 0 ? keyboardHeight + 10 : 0;
 
   return (
-    <View
-      style={[
-        styles.section,
-        { borderTopColor: C.border, paddingBottom: keyboardPad },
-      ]}
-    >
+    <View style={[styles.section, { borderTopColor: C.border }]}>
       <Text style={[styles.label, { color: C.textMuted }]}>TAGS</Text>
       <View style={styles.list}>
         {tags.map((tag) => (
@@ -46,8 +37,7 @@ export function TagsInput({
           placeholder="Add tag..."
           placeholderTextColor={C.textMuted}
           onSubmitEditing={onAdd}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onFocus={onFocus}
           returnKeyType="done"
           autoCorrect={false}
           autoComplete="off"

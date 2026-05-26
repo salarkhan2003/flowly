@@ -1,9 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Radius } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
+import { isUpdateAvailable } from '../../lib/updates';
 import { usePrefsStore } from '../../stores/prefsStore';
 import { useUpdateStore } from '../../stores/updateStore';
 
@@ -14,14 +14,9 @@ export function UpdateAvailableBanner() {
   const showUpdateBanner = usePrefsStore((s) => s.showUpdateBanner);
   const snoozeUpdateBanner24h = usePrefsStore((s) => s.snoozeUpdateBanner24h);
 
-  if (!available || !showUpdateBanner) return null;
+  if (!available || !showUpdateBanner || !isUpdateAvailable(available)) return null;
 
   const version = available.latestVersion;
-
-  const goToProfileUpdates = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push({ pathname: '/(tabs)/profile', params: { section: 'updates' } });
-  };
 
   const handleDownload = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -38,14 +33,14 @@ export function UpdateAvailableBanner() {
         },
       ]}
     >
-      <TouchableOpacity style={styles.mainTap} onPress={goToProfileUpdates} activeOpacity={0.9}>
+      <TouchableOpacity style={styles.mainTap} onPress={handleDownload} activeOpacity={0.9}>
         <View style={[styles.badge, { backgroundColor: C.warning }]}>
           <Text style={[styles.badgeTxt, { color: C.bg }]}>NEW</Text>
         </View>
         <View style={styles.textCol}>
           <Text style={[styles.title, { color: C.textPrimary }]}>Update available</Text>
           <Text style={[styles.sub, { color: C.textSecondary }]} numberOfLines={2}>
-            v{version} ready on GitHub — tap for details
+            v{version} ready — tap to download APK
           </Text>
         </View>
       </TouchableOpacity>

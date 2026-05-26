@@ -1,6 +1,8 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { LatestUpdatesModal } from '../../components/profile/LatestUpdatesModal';
+import { getInstalledVersionDisplay, isUpdateAvailable } from '../../lib/updates';
 import {
-  Animated, Image, ScrollView, Share, StyleSheet,
+  ActivityIndicator, Animated, Image, ScrollView, Share, StyleSheet,
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { showConfirm, showError } from '../../lib/alert';
@@ -9,6 +11,7 @@ import { Href, router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { TelegramJoinButton } from '../../components/forms/TelegramJoinButton';
 import { CheckForUpdatesButton } from '../../components/profile/CheckForUpdatesButton';
 import { DownloadUpdateButton } from '../../components/profile/DownloadUpdateButton';
+import { exportFlowlyPdf } from '../../lib/exportPdf';
 import { shareLatestVersion, getFlowlyDownloadUrl } from '../../lib/shareApp';
 import { ClayCard } from '../../components/ui';
 import { getColors, Spacing, Radius } from '../../constants/theme';
@@ -30,10 +33,10 @@ export default function ProfileScreen() {
   const {
     available: updateAvailable,
     latestRelease,
-    installedVersion,
     isChecking,
     checkForUpdates,
     refreshLatestRelease,
+    refreshInstalledVersion,
     lastMessage,
   } = useUpdateStore();
   const C = getColors(mode);
@@ -52,9 +55,12 @@ export default function ProfileScreen() {
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(user?.name ?? '');
+  const [showChangelog, setShowChangelog] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
+      refreshInstalledVersion();
       refreshLatestRelease().catch(() => {});
       if (section !== 'updates') return;
       const timer = setTimeout(() => {
@@ -64,7 +70,7 @@ export default function ProfileScreen() {
         });
       }, 400);
       return () => clearTimeout(timer);
-    }, [section, refreshLatestRelease])
+    }, [section, refreshLatestRelease, refreshInstalledVersion])
   );
 
   const handleSaveName = async () => {
@@ -81,17 +87,16 @@ export default function ProfileScreen() {
   };
 
   const handleExport = async () => {
-    const data = {
-      exported_at: new Date().toISOString(),
-      user: { name: user?.name },
-      notes: notes.map((n) => ({ title: n.title, content: n.content, tags: n.tags })),
-      tasks: tasks.map((t) => ({ title: t.title, status: t.status, priority: t.priority, due_date: t.due_date })),
-      projects: projects.map((p) => ({ name: p.name, status: p.status, description: p.description })),
-    };
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setExporting(true);
     try {
-      await Share.share({ message: JSON.stringify(data, null, 2), title: 'Flowly Export' });
-    } catch {
-      showError('Export failed', 'Could not share your data. Try again.');
+      await exportFlowlyPdf({ user, notes, tasks, projects });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not create PDF.';
+      showError('Export failed', msg);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -306,14 +311,14 @@ export default function ProfileScreen() {
             updatesSectionY.current = e.nativeEvent.layout.y;
           }}
         >
-        <ClayCard style={[styles.section, { backgroundColor: C.bgCard, borderColor: updateAvailable ? C.borderGlow : C.border }]} glowing={!!updateAvailable}>
+        <ClayCard style={[styles.section, { backgroundColor: C.bgCard, borderColor: updateAvailable && isUpdateAvailable(updateAvailable) ? C.borderGlow : C.border }]} glowing={!!(updateAvailable && isUpdateAvailable(updateAvailable))}>
           <View style={styles.sectionContent}>
             <View style={styles.sectionTitleRow}>
               <View style={[styles.iconBox, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}>
                 <Text style={[styles.iconBoxText, { color: C.accent }]}>↑</Text>
               </View>
               <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>App & Updates</Text>
-              {updateAvailable && (
+              {updateAvailable && isUpdateAvailable(updateAvailable) && (
                 <View style={[styles.updateBadge, { backgroundColor: C.accent, borderColor: C.accent }]}>
                   <Text style={[styles.updateBadgeText, { color: C.bg }]}>New</Text>
                 </View>
@@ -321,11 +326,11 @@ export default function ProfileScreen() {
             </View>
 
             <Text style={[styles.versionLine, { color: C.textSecondary }]}>
-              Installed: Flowly v{installedVersion}
+              Installed: Flowly {getInstalledVersionDisplay()}
               {isChecking ? ' · checking…' : ''}
             </Text>
             {lastMessage && !isChecking ? (
-              <Text style={[styles.lastCheckMsg, { color: updateAvailable ? C.accent : C.textMuted }]}>
+              <Text style={[styles.lastCheckMsg, { color: updateAvailable && isUpdateAvailable(updateAvailable) ? C.accent : C.textMuted }]}>
                 {lastMessage}
               </Text>
             ) : null}
@@ -337,7 +342,26 @@ export default function ProfileScreen() {
             ) : null}
 
             <CheckForUpdatesButton />
-            <DownloadUpdateButton />
+            {updateAvailable && isUpdateAvailable(updateAvailable) ? <DownloadUpdateButton /> : null}
+
+            <TouchableOpacity
+              style={[styles.whatsNewBtn, { backgroundColor: C.bgCardAlt, borderColor: C.border }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                refreshLatestRelease()
+                  .catch(() => {})
+                  .finally(() => setShowChangelog(true));
+              }}
+            >
+              <Text style={[styles.whatsNewLabel, { color: C.textPrimary }]}>What's new in latest release</Text>
+              <Text style={[styles.menuItemArrow, { color: C.accent }]}>›</Text>
+            </TouchableOpacity>
+
+            <LatestUpdatesModal
+              visible={showChangelog}
+              manifest={latestRelease}
+              onClose={() => setShowChangelog(false)}
+            />
 
             <Text style={[styles.policyLabel, { color: C.textMuted }]}>Update notifications</Text>
             {UPDATE_POLICY_OPTIONS.map((opt, i) => (
@@ -373,9 +397,22 @@ export default function ProfileScreen() {
               </View>
               <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Data</Text>
             </View>
-            <TouchableOpacity style={[styles.menuItem, { borderBottomColor: C.border }]} onPress={handleExport}>
-              <Text style={[styles.menuItemText, { color: C.textPrimary }]}>Export All Data</Text>
-              <Text style={[styles.menuItemArrow, { color: C.textMuted }]}>›</Text>
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomColor: C.border }]}
+              onPress={handleExport}
+              disabled={exporting}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.menuItemText, { color: C.textPrimary }]}>Export as PDF</Text>
+                <Text style={[styles.menuItemSub, { color: C.textMuted }]}>
+                  Stylish report · notes, tasks & projects
+                </Text>
+              </View>
+              {exporting ? (
+                <ActivityIndicator size="small" color={C.accent} />
+              ) : (
+                <Text style={[styles.menuItemArrow, { color: C.accent }]}>PDF</Text>
+              )}
             </TouchableOpacity>
             {[
               { label: 'Notes', count: notes.length },
@@ -398,7 +435,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <Text style={[styles.version, { color: C.textMuted }]}>
-          Flowly v{installedVersion} · Offline-first · Local storage
+          Flowly {getInstalledVersionDisplay()} · Offline-first
         </Text>
         <Text style={[styles.shareUrl, { color: C.textMuted }]} selectable>
           Share v{latestRelease.latestVersion}: {getFlowlyDownloadUrl(latestRelease)}
@@ -467,7 +504,8 @@ const styles = StyleSheet.create({
   settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   settingLabel: { fontSize: 15 },
   menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, borderBottomWidth: 1 },
-  menuItemText: { fontSize: 15 },
+  menuItemText: { fontSize: 15, fontWeight: '600' },
+  menuItemSub: { fontSize: 11, marginTop: 2 },
   menuItemArrow: { fontSize: 18, fontWeight: '700' },
   countBadge: { paddingHorizontal: 10, paddingVertical: 2, borderRadius: Radius.full, borderWidth: 1 },
   countText: { fontSize: 12, fontWeight: '700' },
@@ -489,4 +527,14 @@ const styles = StyleSheet.create({
   policyTitle: { fontSize: 14, fontWeight: '600' },
   policyHint: { fontSize: 11 },
   policyDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2 },
+  whatsNewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  whatsNewLabel: { fontSize: 14, fontWeight: '600' },
 });

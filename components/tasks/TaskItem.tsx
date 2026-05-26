@@ -8,7 +8,7 @@ import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { Task } from '../../types';
 import { useTasksStore } from '../../stores/tasksStore';
-import { format } from 'date-fns';
+import { formatDueDate, formatDueTime, isOverdueDueDate } from '../../lib/dates';
 
 export function TaskItem({ task }: { task: Task }) {
   const { C } = useTheme();
@@ -55,7 +55,7 @@ export function TaskItem({ task }: { task: Task }) {
   };
 
   const isDone = task.status === 'done';
-  const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !isDone;
+  const isOverdue = !isDone && isOverdueDueDate(task.due_date);
 
   return (
     <Animated.View style={[styles.wrap, { transform: [{ scale: cardScale }] }]}>
@@ -114,17 +114,17 @@ export function TaskItem({ task }: { task: Task }) {
             <View style={styles.meta}>
               <PriorityBadge priority={task.priority} />
               {task.due_date && (() => {
-                  const d = new Date(task.due_date);
-                  if (isNaN(d.getTime())) return null;
-                  const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
-                  const dateStr = hasTime ? format(d, 'MMM d · h:mm a') : format(d, 'MMM d');
+                  const dateStr = formatDueDate(task.due_date, 'MMM d');
+                  const timeStr = formatDueTime(task.due_date);
+                  if (!dateStr) return null;
+                  const label = timeStr ? `${dateStr} · ${timeStr}` : dateStr;
                   return (
                     <View style={[styles.duePill, {
                       backgroundColor: isOverdue ? C.dangerDim : C.bgCardAlt,
                       borderColor: isOverdue ? C.danger + '40' : C.border,
                     }]}>
                       <Text style={[styles.dueText, { color: isOverdue ? C.danger : C.textSecondary }]}>
-                        {dateStr}
+                        {label}
                       </Text>
                     </View>
                   );

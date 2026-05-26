@@ -1,6 +1,6 @@
 ﻿{
-  "latestVersion": "1.0.2",
-  "latestVersionCode": 3,
-  "apkUrl": "https://github.com/salarkhan2003/flowly/releases/download/v1.0.2/Flowly.apk",
-  "changelog": "• Fixed: Update popup showing when already on latest version\n• Fixed: Keyboard hiding AI chat bar, task inputs, and note editor\n• Added: Settings → AI to configure Groq API key\n• Fixed: Changelog text overlap in update modal\n• Added: Share button sends latest version link automatically"
+  "latestVersion": "1.0.3",
+  "latestVersionCode": 4,
+  "apkUrl": "https://github.com/salarkhan2003/flowly/releases/download/v1.0.3/Flowly.apk",
+  "changelog": "• Added: PDF export for all data from Profile\n• Added: Rich Markdown toolbar in Notes editor\n• Added: AI task/note/project creation - no setup needed\n• Fixed: AI blocked valid 'create' commands\n• Added: Notes grid view, filters, sort, tag search\n• Added: Auto-save + word count in Notes\n• Added: Duplicate, Share, Pin, Archive for notes"
 }

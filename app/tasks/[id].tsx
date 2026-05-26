@@ -34,7 +34,7 @@ function StarIcon({ filled, color }: { filled: boolean; color: string }) {
 
 export default function TaskDetailScreen() {
   const { C } = useTheme();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, due } = useLocalSearchParams<{ id: string; due?: string }>();
   const { tasks, addTask, updateTask, deleteTask } = useTasksStore();
   const { user } = useAuthStore();
 
@@ -45,14 +45,14 @@ export default function TaskDetailScreen() {
   const [description, setDescription] = useState(existing?.description ?? '');
   const [priority, setPriority] = useState<TaskPriority>(existing?.priority ?? 'none');
   const [status, setStatus] = useState<TaskStatus>(existing?.status ?? 'todo');
-  const [dueDate, setDueDate] = useState(existing?.due_date ?? '');
+  const [dueDate, setDueDate] = useState(existing?.due_date ?? due ?? '');
   const [subtasks, setSubtasks] = useState<Subtask[]>(existing?.subtasks ?? []);
   const [subtaskInput, setSubtaskInput] = useState('');
   const [isStarred, setIsStarred] = useState(existing?.is_starred ?? false);
   const formScrollRef = useRef<FormScrollLayoutRef>(null);
 
   const scrollToSubtasks = () => {
-    setTimeout(() => formScrollRef.current?.scrollToEnd(true), 120);
+    setTimeout(() => formScrollRef.current?.scrollToEnd(true), 200);
   };
 
   const handleSave = async () => {

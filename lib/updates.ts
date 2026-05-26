@@ -14,6 +14,8 @@ export interface UpdateManifest {
   apkUrl: string;
   changelog: string;
   forceUpdate?: boolean;
+  /** True when versionCode is not authoritative (GitHub tag fallback). */
+  semverOnly?: boolean;
 }
 
 export type UpdateCheckStatus = 'available' | 'up_to_date' | 'error';
@@ -25,32 +27,99 @@ export interface UpdateCheckResult {
 }
 
 const LAST_CHECK_KEY = 'update_last_check';
+const INSTALLED_CODE_CACHE_KEY = 'flowly_installed_version_code';
 const GITHUB_RELEASES_URL = GITHUB_RELEASES_API_URL;
 
-/** Shipped with the app — used if remote manifest is unreachable. */
 const BUNDLED_MANIFEST: UpdateManifest = require('../release/version.json');
 
-export function getInstalledVersionName(): string {
-  return Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? '1.0.0';
+const FLOWLY_PACKAGE = 'com.flowly.app';
+
+function configVersionName(): string {
+  return Constants.expoConfig?.version ?? '1.0.0';
 }
 
-/** Android versionCode — must increment every APK release. */
-export function getInstalledVersionCode(): number {
-  const fromConfig = Constants.expoConfig?.android?.versionCode;
-  if (typeof fromConfig === 'number') return fromConfig;
-  const build = Application.nativeBuildVersion;
-  if (build) {
-    const parsed = parseInt(build, 10);
-    if (!Number.isNaN(parsed)) return parsed;
+function configVersionCode(): number {
+  const code = Constants.expoConfig?.android?.versionCode;
+  return typeof code === 'number' && code > 0 ? code : 1;
+}
+
+/** True when running the installed Flowly APK (not Expo Go / dev client host). */
+export function isFlowlyProductionBuild(): boolean {
+  const appId = Application.applicationId ?? '';
+  return appId === FLOWLY_PACKAGE;
+}
+
+/** App version from APK manifest, or app.config when using Expo Go. */
+export function getInstalledVersionName(): string {
+  if (isFlowlyProductionBuild()) {
+    const native = Application.nativeApplicationVersion?.trim();
+    if (native) return native;
   }
-  return 1;
+  return configVersionName();
+}
+
+/** Parse Android versionCode only — reject semver strings like "1.0.2" (parseInt → 1). */
+function parseNativeVersionCode(build: string | null | undefined): number | null {
+  if (!build) return null;
+  const trimmed = String(build).trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const parsed = parseInt(trimmed, 10);
+  return !Number.isNaN(parsed) && parsed > 0 ? parsed : null;
+}
+
+let resolvedInstalledCode: number | null = null;
+
+export function clearResolvedVersionCache(): void {
+  resolvedInstalledCode = null;
+}
+
+/** Human-readable installed version for Profile UI. */
+export function getInstalledVersionDisplay(): string {
+  const name = getInstalledVersionName();
+  const build = getInstalledVersionCode();
+  if (isFlowlyProductionBuild()) {
+    return `v${name} · build ${build}`;
+  }
+  return `v${name} · build ${build} (dev)`;
+}
+
+/** Android versionCode from the installed APK (native integer, then expo config). */
+export function getInstalledVersionCode(): number {
+  if (resolvedInstalledCode != null) return resolvedInstalledCode;
+
+  if (isFlowlyProductionBuild()) {
+    const fromNative = parseNativeVersionCode(Application.nativeBuildVersion);
+    if (fromNative != null) return fromNative;
+  }
+
+  return configVersionCode();
+}
+
+export async function cacheInstalledVersionCode(): Promise<number> {
+  clearResolvedVersionCache();
+
+  const fromNative = isFlowlyProductionBuild()
+    ? parseNativeVersionCode(Application.nativeBuildVersion)
+    : null;
+  const configCode = configVersionCode();
+  const cached = await storage.get<number>(INSTALLED_CODE_CACHE_KEY);
+  const code = Math.max(fromNative ?? 0, configCode, cached ?? 0, 1);
+  resolvedInstalledCode = code;
+  await storage.set(INSTALLED_CODE_CACHE_KEY, code);
+  return code;
+}
+
+export async function getCachedInstalledVersionCode(): Promise<number> {
+  if (resolvedInstalledCode != null) return resolvedInstalledCode;
+  const cached = await storage.get<number>(INSTALLED_CODE_CACHE_KEY);
+  if (cached != null && cached > 0) return cached;
+  return getInstalledVersionCode();
 }
 
 export function normalizeVersion(version: string): string {
   return version.trim().replace(/^[vV]/, '');
 }
 
-/** Returns 1 if a > b, -1 if a < b, 0 if equal. */
 export function compareSemver(a: string, b: string): number {
   const pa = normalizeVersion(a).split('.').map((n) => parseInt(n, 10) || 0);
   const pb = normalizeVersion(b).split('.').map((n) => parseInt(n, 10) || 0);
@@ -60,12 +129,6 @@ export function compareSemver(a: string, b: string): number {
     if (diff !== 0) return diff > 0 ? 1 : -1;
   }
   return 0;
-}
-
-/** Numeric code derived from semver for reliable update comparison. */
-export function semverToVersionCode(version: string): number {
-  const parts = normalizeVersion(version).split('.').map((n) => parseInt(n, 10) || 0);
-  return parts[0] * 10_000 + (parts[1] ?? 0) * 100 + (parts[2] ?? 0);
 }
 
 function parseManifest(data: unknown): UpdateManifest | null {
@@ -88,13 +151,29 @@ function parseManifest(data: unknown): UpdateManifest | null {
     apkUrl,
     changelog,
     forceUpdate: raw.forceUpdate === true,
+    semverOnly: false,
   };
 }
 
-/** Primary check: Android versionCode from the installed APK (not semver string alone). */
+/** Compare using versionCode from version.json; semver fallback for GitHub-only manifests. */
 export function isUpdateAvailable(manifest: UpdateManifest): boolean {
   const installedCode = getInstalledVersionCode();
-  return manifest.latestVersionCode > installedCode;
+  const installedName = normalizeVersion(getInstalledVersionName());
+  const latestName = normalizeVersion(manifest.latestVersion);
+
+  if (manifest.semverOnly) {
+    return compareSemver(latestName, installedName) > 0;
+  }
+
+  if (manifest.latestVersionCode > installedCode) {
+    return true;
+  }
+
+  if (manifest.latestVersionCode < installedCode) {
+    return false;
+  }
+
+  return compareSemver(latestName, installedName) > 0;
 }
 
 async function fetchJson(url: string): Promise<unknown | null> {
@@ -141,10 +220,11 @@ async function fetchManifestFromGitHubReleases(): Promise<UpdateManifest | null>
 
   return {
     latestVersion: version,
-    latestVersionCode: semverToVersionCode(version),
+    latestVersionCode: getInstalledVersionCode(),
     apkUrl: apk.browser_download_url,
     changelog: (data.body ?? '').trim() || `Flowly ${version} is available.`,
     forceUpdate: false,
+    semverOnly: true,
   };
 }
 
@@ -155,10 +235,10 @@ async function resolveManifest(): Promise<{ manifest: UpdateManifest | null; sou
   const github = await fetchManifestFromGitHubReleases();
   if (github) return { manifest: github, source: 'GitHub Releases' };
 
-  return { manifest: parseManifest(BUNDLED_MANIFEST), source: 'bundled' };
+  const bundled = parseManifest(BUNDLED_MANIFEST);
+  return { manifest: bundled, source: 'bundled' };
 }
 
-/** Latest release from GitHub version.json → Releases API → bundled fallback. */
 export async function fetchLatestReleaseManifest(): Promise<UpdateManifest> {
   const { manifest } = await resolveManifest();
   if (manifest) return manifest;
@@ -180,8 +260,8 @@ export interface UpdateCheckOutcome {
   message?: string;
 }
 
-/** Fetch manifest and compare versionCode (strict >). */
 export async function checkForUpdates(): Promise<UpdateCheckOutcome> {
+  await cacheInstalledVersionCode();
   await markUpdateCheckComplete();
   const result = await checkForAppUpdate();
 
@@ -207,17 +287,19 @@ export async function checkForUpdates(): Promise<UpdateCheckOutcome> {
   };
 }
 
-/** Check + show in-app alert (Profile button). */
 export async function checkUpdateAndNotify(): Promise<UpdateCheckOutcome> {
   const outcome = await checkForUpdates();
 
   if (outcome.updateAvailable && outcome.manifest) {
     showAlert(
       'Update available',
-      `Flowly v${outcome.manifest.latestVersion} is ready. Use Download below to get the APK.`
+      `Flowly v${outcome.manifest.latestVersion} is ready. Tap Download below to get the APK.`
     );
   } else if (outcome.manifest) {
-    showSuccess("You're on latest", outcome.message ?? `Flowly v${getInstalledVersionName()} is current.`);
+    showSuccess(
+      "You're on latest",
+      `Flowly v${getInstalledVersionName()} (build ${getInstalledVersionCode()}) is current.`
+    );
   } else {
     showError('Update check failed', outcome.message ?? 'Could not reach GitHub.');
   }
@@ -226,6 +308,7 @@ export async function checkUpdateAndNotify(): Promise<UpdateCheckOutcome> {
 }
 
 export async function checkForAppUpdate(): Promise<UpdateCheckResult> {
+  await cacheInstalledVersionCode();
   const { manifest, source } = await resolveManifest();
 
   if (!manifest) {
@@ -240,7 +323,7 @@ export async function checkForAppUpdate(): Promise<UpdateCheckResult> {
     return {
       status: 'up_to_date',
       manifest,
-      message: `You're on the latest version (v${getInstalledVersionName()}). Checked via ${source}.`,
+      message: `You're on the latest version (v${getInstalledVersionName()}, build ${getInstalledVersionCode()}). Checked via ${source}.`,
     };
   }
 
@@ -258,12 +341,6 @@ export async function markUpdateCheckComplete(): Promise<void> {
   await storage.set(LAST_CHECK_KEY, Date.now());
 }
 
-/** @deprecated Use checkForAppUpdate — kept for callers that only need manifest */
-export async function fetchAvailableUpdate(): Promise<UpdateManifest | null> {
-  const result = await checkForAppUpdate();
-  return result.status === 'available' ? result.manifest ?? null : null;
-}
-
 export async function openApkDownload(url: string): Promise<boolean> {
   const target = url?.trim() || DEFAULT_APK_URL;
   try {
@@ -278,4 +355,3 @@ export async function openApkDownload(url: string): Promise<boolean> {
     }
   }
 }
-

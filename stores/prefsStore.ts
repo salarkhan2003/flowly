@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { isUpdateAvailable, type UpdateManifest } from '../lib/updates';
 import { storage } from '../lib/storage';
 
 const MS_24H = 24 * 60 * 60 * 1000;
@@ -6,9 +7,7 @@ const MS_24H = 24 * 60 * 60 * 1000;
 interface PrefsState {
   showTeamBanner: boolean;
   teamJoined: boolean;
-  /** New APK available strip on Home. */
   showUpdateBanner: boolean;
-  /** Daily “check for updates” strip on Home (when already up to date). */
   showCheckUpdatesBanner: boolean;
   telegramPromptDismissed: boolean;
   init: () => Promise<void>;
@@ -16,7 +15,7 @@ interface PrefsState {
   markTeamJoined: () => Promise<void>;
   snoozeUpdateBanner24h: (version: string) => Promise<void>;
   snoozeCheckUpdatesBanner24h: () => Promise<void>;
-  syncHomeUpdateBanners: (latestVersion: string | null) => Promise<void>;
+  syncHomeUpdateBanners: (manifest: UpdateManifest | null) => Promise<void>;
   dismissTelegramPrompt: () => Promise<void>;
   resetPrefs: () => void;
 }
@@ -35,11 +34,11 @@ function shouldShowSnoozedBanner(snoozeUntil: number | null): boolean {
 function shouldShowUpdateBanner(
   snoozeUntil: number | null,
   snoozeVersion: string | null,
-  latestVersion: string | null
+  manifest: UpdateManifest
 ): boolean {
-  if (!latestVersion) return false;
+  if (!isUpdateAvailable(manifest)) return false;
   if (!snoozeUntil) return true;
-  if (snoozeVersion !== latestVersion) return true;
+  if (snoozeVersion !== manifest.latestVersion) return true;
   return Date.now() >= snoozeUntil;
 }
 
@@ -86,19 +85,19 @@ export const usePrefsStore = create<PrefsState>((set) => ({
     });
   },
 
-  syncHomeUpdateBanners: async (latestVersion) => {
+  syncHomeUpdateBanners: async (manifest) => {
     const [updateSnoozeUntil, updateSnoozeVersion, checkSnoozeUntil] = await Promise.all([
       storage.get<number>('update_banner_snooze_until'),
       storage.get<string>('update_banner_snooze_version'),
       storage.get<number>('check_updates_banner_snooze_until'),
     ]);
 
-    if (latestVersion) {
+    if (manifest && isUpdateAvailable(manifest)) {
       set({
         showUpdateBanner: shouldShowUpdateBanner(
           updateSnoozeUntil ?? null,
           updateSnoozeVersion ?? null,
-          latestVersion
+          manifest
         ),
         showCheckUpdatesBanner: false,
       });

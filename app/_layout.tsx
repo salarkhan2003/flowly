@@ -12,6 +12,7 @@ import { QuickCapturePicker } from '../components/home/QuickCapturePicker';
 import { ForceUpdateGate } from '../components/ForceUpdateGate';
 import { UpdateModalHost } from '../components/UpdateModalHost';
 import { getColors } from '../constants/theme';
+import { cacheInstalledVersionCode } from '../lib/updates';
 import { useUpdateStore } from '../stores/updateStore';
 import { usePrefsStore } from '../stores/prefsStore';
 import { stabilizeDevKeepAwake } from '../lib/devKeepAwake';
@@ -27,10 +28,11 @@ export default function RootLayout() {
   const refreshInstalledVersion = useUpdateStore((s) => s.refreshInstalledVersion);
 
   useEffect(() => {
-    Promise.all([init(), initTheme(), initPrefs()]).then(() => {
+    Promise.all([init(), initTheme(), initPrefs()]).then(async () => {
+      await cacheInstalledVersionCode();
       refreshInstalledVersion();
       SplashScreen.hideAsync();
-      refreshLatestRelease().catch(() => {});
+      await refreshLatestRelease().catch(() => {});
       checkForUpdates().catch(() => {});
     });
     requestNotificationPermissions().catch(() => {});

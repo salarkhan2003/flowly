@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Radius } from '../../constants/theme';
-import { checkUpdateAndNotify } from '../../lib/updates';
+import { checkUpdateAndNotify, getInstalledVersionDisplay } from '../../lib/updates';
 import { useTheme } from '../../hooks/useTheme';
 import { useUpdateStore } from '../../stores/updateStore';
 
@@ -10,16 +10,18 @@ import { useUpdateStore } from '../../stores/updateStore';
 export function CheckForUpdatesButton() {
   const { C } = useTheme();
   const [checking, setChecking] = useState(false);
-  const installedVersion = useUpdateStore((s) => s.installedVersion);
+  const refreshInstalledVersion = useUpdateStore((s) => s.refreshInstalledVersion);
   const isCheckingStore = useUpdateStore((s) => s.isChecking);
   const applyCheckResult = useUpdateStore((s) => s.applyCheckResult);
 
   const onPress = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    refreshInstalledVersion();
     setChecking(true);
     try {
       const outcome = await checkUpdateAndNotify();
       applyCheckResult(outcome);
+      refreshInstalledVersion();
     } finally {
       setChecking(false);
     }
@@ -46,7 +48,7 @@ export function CheckForUpdatesButton() {
           {busy ? 'Checking for updates…' : 'Check for updates'}
         </Text>
         <Text style={[styles.sub, { color: C.textMuted }]}>
-          Installed v{installedVersion} · version.json on GitHub
+          {getInstalledVersionDisplay()} · checks GitHub
         </Text>
       </View>
       <Text style={[styles.arrow, { color: C.textMuted }]}>›</Text>
