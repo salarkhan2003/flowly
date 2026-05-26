@@ -20,6 +20,7 @@ import { showError, showSuccess } from '../../lib/alert';
 import {
   clearUserGroqApiKey,
   getBundledGroqApiKey,
+  getGroqKeyStatus,
   saveUserGroqApiKey,
 } from '../../lib/groqKey';
 
@@ -29,6 +30,7 @@ export default function AISettingsScreen() {
   const { C } = useTheme();
   const [keyInput, setKeyInput] = useState('');
   const [hasBundled, setHasBundled] = useState(false);
+  const [aiReady, setAiReady] = useState(false);
   const [hasOverride, setHasOverride] = useState(false);
   const [testing, setTesting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -36,6 +38,8 @@ export default function AISettingsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     setHasBundled(!!getBundledGroqApiKey());
+    const status = await getGroqKeyStatus();
+    setAiReady(status.ready);
     try {
       const stored = await SecureStore.getItemAsync(SECURE_KEY);
       if (stored?.trim()) {
@@ -118,16 +122,19 @@ export default function AISettingsScreen() {
           Get a free key at console.groq.com. Leave empty to use the app default when available.
         </Text>
 
-        {hasBundled ? (
+        {aiReady ? (
           <View style={[s.banner, { backgroundColor: C.successDim, borderColor: C.borderGlow }]}>
             <Text style={[s.bannerText, { color: C.accent }]}>
-              This build includes a default API key. Your saved key overrides it.
+              {hasBundled
+                ? 'AI is ready — this APK includes a built-in Groq key.'
+                : 'AI is ready — using your saved API key.'}
+              {hasBundled && hasOverride ? ' Your key overrides the built-in key.' : ''}
             </Text>
           </View>
         ) : (
           <View style={[s.banner, { backgroundColor: C.warningDim, borderColor: C.warning + '40' }]}>
             <Text style={[s.bannerText, { color: C.warning }]}>
-              No bundled key — add your Groq API key below.
+              AI not configured — add your Groq API key below (get one free at console.groq.com).
             </Text>
           </View>
         )}

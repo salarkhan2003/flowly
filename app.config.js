@@ -1,4 +1,17 @@
 /** @type {import('expo/config').ExpoConfig} */
+const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim() ?? '';
+
+if (
+  process.env.EAS_BUILD === 'true' &&
+  process.env.EAS_BUILD_PROFILE === 'production' &&
+  !groqApiKey
+) {
+  throw new Error(
+    'EXPO_PUBLIC_GROQ_API_KEY must be set for production APK builds (AI will not work). ' +
+      'Run: eas secret:create --name EXPO_PUBLIC_GROQ_API_KEY --value gsk_YOUR_KEY --scope project'
+  );
+}
+
 export default {
   expo: {
     name: 'Flowly',
@@ -25,6 +38,7 @@ export default {
       package: 'com.flowly.app',
       versionCode: 4,
       softwareKeyboardLayoutMode: 'resize',
+      permissions: ['INTERNET'],
     },
     web: {
       bundler: 'metro',
@@ -41,7 +55,7 @@ export default {
       eas: {
         projectId: 'ea69c369-3d07-491b-bff8-66075237eec3',
       },
-      groqApiKey: process.env.EXPO_PUBLIC_GROQ_API_KEY ?? '',
+      groqApiKey,
     },
     owner: 'salarkhan22s-organization',
   },

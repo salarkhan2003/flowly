@@ -5,7 +5,7 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'llama-3.3-70b-versatile';
 
 const MISSING_KEY_MSG =
-  'AI is not configured. Open Profile → AI Assistant → Configure API key.';
+  'AI is not configured. Open Profile → AI Assistant → Configure API key, or reinstall an APK built with the Groq key embedded.';
 
 export interface AppContext {
   tasks?: unknown;
