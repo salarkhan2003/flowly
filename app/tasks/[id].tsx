@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { FormScrollLayout } from '../../components/forms/FormScrollLayout';
+import { FormScrollLayout, type FormScrollLayoutRef } from '../../components/forms/FormScrollLayout';
 import { showConfirm } from '../../lib/alert';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -49,6 +49,11 @@ export default function TaskDetailScreen() {
   const [subtasks, setSubtasks] = useState<Subtask[]>(existing?.subtasks ?? []);
   const [subtaskInput, setSubtaskInput] = useState('');
   const [isStarred, setIsStarred] = useState(existing?.is_starred ?? false);
+  const formScrollRef = useRef<FormScrollLayoutRef>(null);
+
+  const scrollToSubtasks = () => {
+    setTimeout(() => formScrollRef.current?.scrollToEnd(true), 120);
+  };
 
   const handleSave = async () => {
     if (!title.trim() || !user) return;
@@ -107,7 +112,7 @@ export default function TaskDetailScreen() {
         </View>
       </View>
 
-      <FormScrollLayout contentContainerStyle={s.content}>
+      <FormScrollLayout ref={formScrollRef} contentContainerStyle={s.content} keyboardExtraPad={80}>
         {/* Title */}
         <TextInput
           style={[s.titleInput, { color: C.textPrimary, borderBottomColor: C.border }]}
@@ -204,6 +209,7 @@ export default function TaskDetailScreen() {
                 placeholder="Add subtask..."
                 placeholderTextColor={C.textMuted}
                 onSubmitEditing={addSubtask}
+                onFocus={scrollToSubtasks}
                 returnKeyType="done"
               />
               <TouchableOpacity onPress={addSubtask} style={[s.subAddBtn, { backgroundColor: C.accentDim }]}>

@@ -15,7 +15,6 @@ import { GlowButton } from './GlowButton';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import type { UpdateManifest } from '../../lib/updates';
-import { getInstalledVersionName } from '../../lib/updates';
 
 export type UpdateModalKind = 'checking' | 'available' | 'up_to_date' | 'error' | 'link_error';
 
@@ -115,15 +114,12 @@ export function UpdateModal({
   message,
   manifest,
   force = false,
-  installedVersion,
   onClose,
   onDownload,
 }: UpdateModalProps) {
   const { C } = useTheme();
   const scale = useRef(new Animated.Value(0.92)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-
-  const installedLabel = installedVersion ?? getInstalledVersionName();
 
   useEffect(() => {
     if (visible) {
@@ -152,6 +148,10 @@ export function UpdateModal({
 
   const showChangelog = kind === 'available' && !!manifest?.changelog;
   const canDismiss = !(force && kind === 'available');
+  const displayTitle =
+    kind === 'available' && manifest
+      ? `Update Available: v${manifest.latestVersion}`
+      : title;
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
@@ -159,55 +159,47 @@ export function UpdateModal({
         <Pressable style={styles.backdrop} onPress={canDismiss ? handleClose : undefined} />
         <Animated.View style={[styles.center, { transform: [{ scale }] }]}>
           <ClayCard glowing={kind === 'available'} cyan={kind === 'checking'} style={styles.card}>
-            <View style={styles.cardInner}>
-              <ModalIcon kind={kind} />
+            <View style={styles.cardBody}>
+              <View style={styles.cardInner}>
+                <ModalIcon kind={kind} />
+                <Text style={[styles.title, { color: C.textPrimary }]}>{displayTitle}</Text>
 
-              <Text style={[styles.title, { color: C.textPrimary }]}>{title}</Text>
+                {showChangelog ? (
+                  <ChangelogList text={manifest!.changelog} />
+                ) : (
+                  <Text style={[styles.message, { color: C.textSecondary }]}>{message}</Text>
+                )}
 
-              {kind === 'available' && manifest ? (
-                <View style={[styles.versionPill, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}>
-                  <Text style={[styles.versionPillText, { color: C.accent }]}>
-                    v{manifest.latestVersion}
-                  </Text>
-                  <Text style={[styles.versionFrom, { color: C.textMuted }]}>
-                    from v{installedLabel}
-                  </Text>
-                </View>
-              ) : null}
+                {kind === 'link_error' && manifest?.apkUrl ? (
+                  <ScrollView
+                    style={[styles.urlBox, { backgroundColor: C.bgCardDeep, borderColor: C.border }]}
+                  >
+                    <Text style={[styles.urlText, { color: C.textMuted }]} selectable>
+                      {manifest.apkUrl}
+                    </Text>
+                  </ScrollView>
+                ) : null}
+              </View>
 
-              {showChangelog ? (
-                <ChangelogList text={manifest!.changelog} />
-              ) : (
-                <Text style={[styles.message, { color: C.textSecondary }]}>{message}</Text>
-              )}
-
-              {kind === 'link_error' && manifest?.apkUrl ? (
-                <ScrollView style={[styles.urlBox, { backgroundColor: C.bgCardDeep, borderColor: C.border }]}>
-                  <Text style={[styles.urlText, { color: C.textMuted }]} selectable>
-                    {manifest.apkUrl}
-                  </Text>
-                </ScrollView>
-              ) : null}
-            </View>
-
-            <View style={[styles.actions, { borderTopColor: C.border }]}>
-              {kind === 'checking' ? null : kind === 'available' ? (
-                <>
-                  {!force ? (
-                    <GlowButton label="Later" onPress={handleClose} variant="ghost" fullWidth />
-                  ) : null}
-                  <GlowButton
-                    label={`Download Flowly ${manifest?.latestVersion ?? ''}`.trim()}
-                    onPress={handleDownload}
-                    variant="primary"
-                    fullWidth
-                  />
-                </>
-              ) : kind === 'up_to_date' ? (
-                <GlowButton label="Got it" onPress={handleClose} variant="primary" fullWidth />
-              ) : (
-                <GlowButton label="OK" onPress={handleClose} variant="secondary" fullWidth />
-              )}
+              <View style={[styles.actions, { borderTopColor: C.border, backgroundColor: C.bgCard }]}>
+                {kind === 'checking' ? null : kind === 'available' ? (
+                  <>
+                    {!force ? (
+                      <GlowButton label="Later" onPress={handleClose} variant="ghost" fullWidth />
+                    ) : null}
+                    <GlowButton
+                      label={`Download v${manifest?.latestVersion ?? ''}`.trim()}
+                      onPress={handleDownload}
+                      variant="primary"
+                      fullWidth
+                    />
+                  </>
+                ) : kind === 'up_to_date' ? (
+                  <GlowButton label="Got it" onPress={handleClose} variant="primary" fullWidth />
+                ) : (
+                  <GlowButton label="OK" onPress={handleClose} variant="secondary" fullWidth />
+                )}
+              </View>
             </View>
           </ClayCard>
         </Animated.View>
@@ -232,10 +224,15 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
+    overflow: 'hidden',
+  },
+  cardBody: {
+    position: 'relative',
+    minHeight: 200,
   },
   cardInner: {
     padding: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingBottom: 120,
     alignItems: 'center',
     gap: Spacing.sm,
   },
@@ -258,17 +255,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: -0.3,
   },
-  versionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-  },
-  versionPillText: { fontSize: 14, fontWeight: '800' },
-  versionFrom: { fontSize: 12, fontWeight: '500' },
   message: {
     fontSize: 14,
     lineHeight: 21,
@@ -310,7 +296,10 @@ const styles = StyleSheet.create({
   },
   urlText: { fontSize: 11, lineHeight: 16 },
   actions: {
-    width: '100%',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     padding: Spacing.lg,
     paddingTop: Spacing.md,
     gap: 10,

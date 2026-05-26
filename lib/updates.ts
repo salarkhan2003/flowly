@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import { Linking } from 'react-native';
 import { DEFAULT_APK_URL, getUpdateManifestUrl, GITHUB_RELEASES_API_URL } from '../constants/updates';
 import type { UpdateCheckPolicy } from '../types';
+import { showAlert, showError, showSuccess } from './alert';
 import { storage } from './storage';
 
 export type { UpdateCheckPolicy };
@@ -155,6 +156,73 @@ async function resolveManifest(): Promise<{ manifest: UpdateManifest | null; sou
   if (github) return { manifest: github, source: 'GitHub Releases' };
 
   return { manifest: parseManifest(BUNDLED_MANIFEST), source: 'bundled' };
+}
+
+/** Latest release from GitHub version.json → Releases API → bundled fallback. */
+export async function fetchLatestReleaseManifest(): Promise<UpdateManifest> {
+  const { manifest } = await resolveManifest();
+  if (manifest) return manifest;
+  const bundled = parseManifest(BUNDLED_MANIFEST);
+  return (
+    bundled ?? {
+      latestVersion: getInstalledVersionName(),
+      latestVersionCode: getInstalledVersionCode(),
+      apkUrl: DEFAULT_APK_URL,
+      changelog: '',
+      forceUpdate: false,
+    }
+  );
+}
+
+export interface UpdateCheckOutcome {
+  updateAvailable: boolean;
+  manifest?: UpdateManifest;
+  message?: string;
+}
+
+/** Fetch manifest and compare versionCode (strict >). */
+export async function checkForUpdates(): Promise<UpdateCheckOutcome> {
+  await markUpdateCheckComplete();
+  const result = await checkForAppUpdate();
+
+  if (result.status === 'available' && result.manifest) {
+    return {
+      updateAvailable: true,
+      manifest: result.manifest,
+      message: `Update available: v${result.manifest.latestVersion}`,
+    };
+  }
+
+  if (result.status === 'up_to_date' && result.manifest) {
+    return {
+      updateAvailable: false,
+      manifest: result.manifest,
+      message: result.message,
+    };
+  }
+
+  return {
+    updateAvailable: false,
+    message: result.message ?? 'Could not check for updates.',
+  };
+}
+
+/** Check + show in-app alert (Profile button). */
+export async function checkUpdateAndNotify(): Promise<UpdateCheckOutcome> {
+  const outcome = await checkForUpdates();
+
+  if (outcome.updateAvailable && outcome.manifest) {
+    showAlert(
+      'Update available',
+      `Flowly v${outcome.manifest.latestVersion} is ready. Use Download below to get the APK.`
+    );
+  } else if (outcome.manifest) {
+    showSuccess("You're on latest", outcome.message ?? `Flowly v${getInstalledVersionName()} is current.`);
+  } else {
+    showError('Update check failed', outcome.message ?? 'Could not reach GitHub.');
+  }
+
+  return outcome;
 }
 
 export async function checkForAppUpdate(): Promise<UpdateCheckResult> {

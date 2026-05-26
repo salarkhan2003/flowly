@@ -138,7 +138,7 @@ export default function NoteEditorScreen() {
         </View>
       </View>
 
-      <FormScrollLayout contentContainerStyle={s.scrollContent}>
+      <FormScrollLayout contentContainerStyle={s.scrollContent} keyboardExtraPad={80}>
         <TextInput
           style={[s.titleInput, { color: C.textPrimary }]}
           value={title}

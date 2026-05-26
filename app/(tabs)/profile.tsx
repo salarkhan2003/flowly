@@ -5,9 +5,11 @@ import {
 } from 'react-native';
 import { showConfirm, showError } from '../../lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Href, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { TelegramJoinButton } from '../../components/forms/TelegramJoinButton';
 import { CheckForUpdatesButton } from '../../components/profile/CheckForUpdatesButton';
+import { DownloadUpdateButton } from '../../components/profile/DownloadUpdateButton';
+import { shareLatestVersion, getFlowlyDownloadUrl } from '../../lib/shareApp';
 import { ClayCard } from '../../components/ui';
 import { getColors, Spacing, Radius } from '../../constants/theme';
 import { useAuthStore } from '../../stores/authStore';
@@ -27,11 +29,11 @@ export default function ProfileScreen() {
   const { mode, toggle } = useThemeStore();
   const {
     available: updateAvailable,
+    latestRelease,
     installedVersion,
     isChecking,
     checkForUpdates,
-    promptUpdate,
-    openUpdateDownload,
+    refreshLatestRelease,
     lastMessage,
   } = useUpdateStore();
   const C = getColors(mode);
@@ -53,6 +55,7 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      refreshLatestRelease().catch(() => {});
       if (section !== 'updates') return;
       const timer = setTimeout(() => {
         scrollRef.current?.scrollTo({
@@ -61,7 +64,7 @@ export default function ProfileScreen() {
         });
       }, 400);
       return () => clearTimeout(timer);
-    }, [section])
+    }, [section, refreshLatestRelease])
   );
 
   const handleSaveName = async () => {
@@ -92,6 +95,12 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleShareApp = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const ok = await shareLatestVersion();
+    if (ok) await refreshLatestRelease();
+  };
+
   const handleReset = () => {
     showConfirm({
       title: 'Reset Flowly',
@@ -110,10 +119,24 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: C.bg }]}>
+      <View style={[styles.topBar, { borderBottomColor: C.border }]}>
+        <Text style={[styles.topBarTitle, { color: C.textPrimary }]}>Profile</Text>
+        <TouchableOpacity
+          style={[styles.shareBtn, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}
+          onPress={handleShareApp}
+          activeOpacity={0.85}
+          accessibilityLabel="Share Flowly app download link"
+        >
+          <Text style={[styles.shareIcon, { color: C.accent }]}>↗</Text>
+          <Text style={[styles.shareLabel, { color: C.accent }]}>Share app</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="always"
       >
 
         {/* Avatar + name */}
@@ -211,11 +234,18 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.aiRow}>
               <View style={[styles.aiDot, { backgroundColor: C.accent, shadowColor: C.accent }]} />
-              <Text style={[styles.aiStatus, { color: C.accent }]}>Groq · llama-3.3-70b · Ready</Text>
+              <Text style={[styles.aiStatus, { color: C.accent }]}>Groq · llama-3.3-70b</Text>
             </View>
             <Text style={[styles.aiNote, { color: C.textSecondary }]}>
               Built-in AI with full access to your notes, tasks, and projects.
             </Text>
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomWidth: 0 }]}
+              onPress={() => router.push('/settings/ai' as Href)}
+            >
+              <Text style={[styles.menuItemText, { color: C.textPrimary }]}>Configure API key</Text>
+              <Text style={[styles.menuItemArrow, { color: C.accent }]}>›</Text>
+            </TouchableOpacity>
           </View>
         </ClayCard>
 
@@ -300,27 +330,14 @@ export default function ProfileScreen() {
               </Text>
             ) : null}
 
-            {updateAvailable ? (
-              <TouchableOpacity
-                style={[styles.updateBanner, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}
-                onPress={promptUpdate}
-                activeOpacity={0.85}
-              >
-                <Text style={[styles.updateBannerTitle, { color: C.accent }]}>
-                  v{updateAvailable.latestVersion} available
-                </Text>
-                <Text style={[styles.updateBannerBody, { color: C.textSecondary }]} numberOfLines={3}>
-                  {updateAvailable.changelog}
-                </Text>
-                <Text style={[styles.updateBannerAction, { color: C.accent }]}>Opens GitHub APK in your browser →</Text>
-              </TouchableOpacity>
-            ) : (
+            {!updateAvailable ? (
               <Text style={[styles.aiNote, { color: C.textMuted }]}>
-                Direct APK installs do not auto-update. We check your hosted version.json (when online).
+                Direct APK installs do not auto-update. Tap below to check version.json on GitHub.
               </Text>
-            )}
+            ) : null}
 
             <CheckForUpdatesButton />
+            <DownloadUpdateButton />
 
             <Text style={[styles.policyLabel, { color: C.textMuted }]}>Update notifications</Text>
             {UPDATE_POLICY_OPTIONS.map((opt, i) => (
@@ -383,6 +400,9 @@ export default function ProfileScreen() {
         <Text style={[styles.version, { color: C.textMuted }]}>
           Flowly v{installedVersion} · Offline-first · Local storage
         </Text>
+        <Text style={[styles.shareUrl, { color: C.textMuted }]} selectable>
+          Share v{latestRelease.latestVersion}: {getFlowlyDownloadUrl(latestRelease)}
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -390,6 +410,26 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  topBarTitle: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+  shareIcon: { fontSize: 14, fontWeight: '800' },
+  shareLabel: { fontSize: 13, fontWeight: '700' },
   content: { padding: Spacing.md, gap: Spacing.md, paddingBottom: 140 },
   avatarSection: { alignItems: 'center', paddingVertical: Spacing.lg, gap: 10 },
   avatarWrap: { width: 88, height: 88, borderRadius: 44, overflow: 'hidden', borderWidth: 2 },
@@ -434,6 +474,7 @@ const styles = StyleSheet.create({
   resetBtn: { marginTop: Spacing.sm, paddingVertical: 14, borderRadius: Radius.md, borderWidth: 1, alignItems: 'center' },
   resetBtnText: { fontSize: 14, fontWeight: '600' },
   version: { fontSize: 11, textAlign: 'center', marginTop: 4 },
+  shareUrl: { fontSize: 10, textAlign: 'center', marginTop: 6, paddingHorizontal: Spacing.md },
   versionLine: { fontSize: 13, marginBottom: 4 },
   lastCheckMsg: { fontSize: 12, lineHeight: 17, marginBottom: 6 },
   updateBadge: { marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.full, borderWidth: 1 },

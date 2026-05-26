@@ -1,17 +1,11 @@
-import Constants from 'expo-constants';
 import { AIMessage } from '../types';
+import { resolveGroqApiKey } from './groqKey';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'llama-3.3-70b-versatile';
 
-function getApiKey(): string {
-  const extra = Constants.expoConfig?.extra as { groqApiKey?: string } | undefined;
-  return (
-    extra?.groqApiKey?.trim() ??
-    process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim() ??
-    ''
-  );
-}
+const MISSING_KEY_MSG =
+  'AI is not configured. Open Profile → AI Assistant → Configure API key.';
 
 export interface AppContext {
   tasks?: unknown;
@@ -28,23 +22,55 @@ interface SendAIMessageParams {
 
 export type InlineAction = 'summarize' | 'rewrite' | 'expand' | 'extract_tasks' | 'auto_tag';
 
-async function groqChat(messages: { role: string; content: string }[]): Promise<string> {
-  const apiKey = getApiKey();
-  if (!apiKey) return 'AI is not configured. Please add your Groq API key.';
+/** Ping Groq with a key (Settings → Test Key). */
+export async function testGroqApiKey(apiKey: string): Promise<{ ok: boolean; message: string }> {
+  const key = apiKey.trim();
+  if (!key) return { ok: false, message: 'Enter an API key first.' };
 
-  const res = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: MODEL, messages, max_tokens: 1024, temperature: 0.7 }),
-  });
-
-  if (!res.ok) {
+  try {
+    const res = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [{ role: 'user', content: 'Hi' }],
+        max_tokens: 8,
+      }),
+    });
+    if (res.ok) return { ok: true, message: 'API key works.' };
     const err = await res.text().catch(() => res.statusText);
-    throw new Error(`Groq API error ${res.status}: ${err}`);
+    return { ok: false, message: `Groq returned ${res.status}: ${err.slice(0, 120)}` };
+  } catch {
+    return { ok: false, message: 'Could not reach Groq. Check your connection.' };
+  }
+}
+
+async function groqChat(messages: { role: string; content: string }[]): Promise<string> {
+  let apiKey: string | null = null;
+  try {
+    apiKey = await resolveGroqApiKey();
+  } catch {
+    return MISSING_KEY_MSG;
   }
 
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? '';
+  if (!apiKey) return MISSING_KEY_MSG;
+
+  try {
+    const res = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: MODEL, messages, max_tokens: 1024, temperature: 0.7 }),
+    });
+
+    if (!res.ok) {
+      return `AI request failed (${res.status}). Check your API key in Settings → AI.`;
+    }
+
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content ?? '';
+  } catch {
+    return 'Could not reach Groq. Check your connection and try again.';
+  }
 }
 
 const SYSTEM_PROMPT = `You are Flowly AI — the built-in productivity assistant inside the Flowly app (notes, tasks, projects, offline-first).
@@ -68,23 +94,36 @@ Project: {"action":"create_project","name":"...","description":"...","color":"#h
 
 You may add one short sentence before or after the JSON block. If creation is ambiguous, ask a clarifying question instead of guessing.`;
 
-// Strip action JSON blocks from a message using brace-counting (regex can't handle nested JSON)
 function stripActionJson(text: string): string {
   let result = text;
-  // Keep stripping until no more action blocks found
   while (true) {
     let found = false;
     for (let i = 0; i < result.length; i++) {
       if (result[i] !== '{') continue;
-      let depth = 0, inString = false, escape = false, j = i;
+      let depth = 0,
+        inString = false,
+        escape = false,
+        j = i;
       for (; j < result.length; j++) {
         const ch = result[j];
-        if (escape) { escape = false; continue; }
-        if (ch === '\\' && inString) { escape = true; continue; }
-        if (ch === '"') { inString = !inString; continue; }
+        if (escape) {
+          escape = false;
+          continue;
+        }
+        if (ch === '\\' && inString) {
+          escape = true;
+          continue;
+        }
+        if (ch === '"') {
+          inString = !inString;
+          continue;
+        }
         if (inString) continue;
         if (ch === '{') depth++;
-        else if (ch === '}') { depth--; if (depth === 0) break; }
+        else if (ch === '}') {
+          depth--;
+          if (depth === 0) break;
+        }
       }
       if (depth !== 0) continue;
       const candidate = result.slice(i, j + 1);
@@ -95,7 +134,9 @@ function stripActionJson(text: string): string {
           found = true;
           break;
         }
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
     if (!found) break;
   }
@@ -103,8 +144,6 @@ function stripActionJson(text: string): string {
 }
 
 export async function sendAIMessage({ messages, appContext }: SendAIMessageParams): Promise<string> {
-  // Send context as plain text summary, NOT raw JSON — raw JSON confuses the model
-  // into generating action blocks during normal conversation
   const lines: string[] = [];
   if (appContext?.userName) lines.push(`User's name: ${appContext.userName}`);
   if (Array.isArray(appContext?.tasks) && (appContext.tasks as unknown[]).length > 0) {
@@ -126,7 +165,6 @@ export async function sendAIMessage({ messages, appContext }: SendAIMessageParam
 
   return groqChat([
     { role: 'system', content: systemContent },
-    // Strip any action JSON from assistant history so the model never repeats actions
     ...messages.map((m) => ({
       role: m.role,
       content: m.role === 'assistant' ? stripActionJson(m.content) : m.content,

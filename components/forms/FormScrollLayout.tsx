@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,46 +10,62 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spacing } from '../../constants/theme';
 import { useKeyboard } from '../../hooks/useKeyboard';
 
+export type FormScrollLayoutRef = {
+  scrollToEnd: (animated?: boolean) => void;
+  scrollTo: (y: number, animated?: boolean) => void;
+};
+
 type FormScrollLayoutProps = {
   children: React.ReactNode;
   contentContainerStyle?: ViewStyle;
-  /** Extra bottom space when a fixed bar sits below this scroll (e.g. tab bar). */
   footerClearance?: number;
+  keyboardExtraPad?: number;
 };
 
-export function FormScrollLayout({
-  children,
-  contentContainerStyle,
-  footerClearance = 0,
-}: FormScrollLayoutProps) {
-  const insets = useSafeAreaInsets();
-  const { keyboardHeight } = useKeyboard();
+export const FormScrollLayout = forwardRef<FormScrollLayoutRef, FormScrollLayoutProps>(
+  function FormScrollLayout(
+    { children, contentContainerStyle, footerClearance = 0, keyboardExtraPad = 0 },
+    ref
+  ) {
+    const insets = useSafeAreaInsets();
+    const { keyboardHeight } = useKeyboard();
+    const scrollRef = useRef<ScrollView>(null);
 
-  const bottomPad =
-    Spacing.xxl +
-    insets.bottom +
-    footerClearance +
-    (keyboardHeight > 0 ? keyboardHeight - insets.bottom : 0);
+    useImperativeHandle(ref, () => ({
+      scrollToEnd: (animated = true) => {
+        scrollRef.current?.scrollToEnd({ animated });
+      },
+      scrollTo: (y, animated = true) => {
+        scrollRef.current?.scrollTo({ y, animated });
+      },
+    }));
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: bottomPad }, contentContainerStyle]}
-        keyboardShouldPersistTaps="always"
-        keyboardDismissMode="interactive"
-        showsVerticalScrollIndicator={false}
-        nestedScrollEnabled
+    const bottomPad =
+      keyboardHeight > 0
+        ? keyboardHeight + 20 + keyboardExtraPad + footerClearance
+        : Spacing.xxl + insets.bottom + footerClearance;
+
+    return (
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {children}
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-}
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scroll}
+          contentContainerStyle={[styles.content, { paddingBottom: bottomPad }, contentContainerStyle]}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+        >
+          {children}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+);
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },

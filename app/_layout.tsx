@@ -23,12 +23,14 @@ export default function RootLayout() {
   const initTheme = useThemeStore((s) => s.init);
   const initPrefs = usePrefsStore((s) => s.init);
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
+  const refreshLatestRelease = useUpdateStore((s) => s.refreshLatestRelease);
   const refreshInstalledVersion = useUpdateStore((s) => s.refreshInstalledVersion);
 
   useEffect(() => {
     Promise.all([init(), initTheme(), initPrefs()]).then(() => {
       refreshInstalledVersion();
       SplashScreen.hideAsync();
+      refreshLatestRelease().catch(() => {});
       checkForUpdates().catch(() => {});
     });
     requestNotificationPermissions().catch(() => {});
@@ -48,6 +50,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="hub" />
           <Stack.Screen name="forms" />
+          <Stack.Screen name="settings/ai" options={{ presentation: 'card', animation: 'slide_from_right' }} />
           <Stack.Screen name="notes/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
           <Stack.Screen name="tasks/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
           <Stack.Screen name="projects/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />

@@ -1,14 +1,18 @@
 import { create } from 'zustand';
 import {
   checkForAppUpdate,
+  fetchLatestReleaseManifest,
   getInstalledVersionCode,
   getInstalledVersionName,
   markUpdateCheckComplete,
   openApkDownload,
   shouldRunUpdateCheck,
   UpdateCheckPolicy,
+  UpdateCheckOutcome,
   UpdateManifest,
 } from '../lib/updates';
+
+const BUNDLED_RELEASE: UpdateManifest = require('../release/version.json');
 import type { UpdateModalKind } from '../components/ui/UpdateModal';
 import { useAuthStore } from './authStore';
 
@@ -31,6 +35,8 @@ const CLOSED_MODAL: UpdateModalState = {
 
 interface UpdateState {
   available: UpdateManifest | null;
+  /** Remote latest from version.json — used for share link & display. */
+  latestRelease: UpdateManifest;
   isChecking: boolean;
   lastMessage: string | null;
   installedVersion: string;
@@ -39,9 +45,11 @@ interface UpdateState {
   showUpdateModal: (payload: Omit<UpdateModalState, 'visible'> & { visible?: boolean }) => void;
   hideUpdateModal: () => void;
   checkForUpdates: (options?: { force?: boolean; showAlert?: boolean }) => Promise<void>;
+  refreshLatestRelease: () => Promise<void>;
   openUpdateDownload: () => Promise<void>;
   promptUpdate: () => void;
   refreshInstalledVersion: () => void;
+  applyCheckResult: (outcome: UpdateCheckOutcome) => void;
 }
 
 function getPolicy(): UpdateCheckPolicy {
@@ -50,11 +58,21 @@ function getPolicy(): UpdateCheckPolicy {
 
 export const useUpdateStore = create<UpdateState>((set, get) => ({
   available: null,
+  latestRelease: BUNDLED_RELEASE,
   isChecking: false,
   lastMessage: null,
   installedVersion: getInstalledVersionName(),
   installedVersionCode: getInstalledVersionCode(),
   modal: CLOSED_MODAL,
+
+  refreshLatestRelease: async () => {
+    try {
+      const manifest = await fetchLatestReleaseManifest();
+      set({ latestRelease: manifest });
+    } catch {
+      /* keep previous */
+    }
+  },
 
   showUpdateModal: (payload) => {
     const installedVersion = getInstalledVersionName();
@@ -75,6 +93,24 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       installedVersion: getInstalledVersionName(),
       installedVersionCode: getInstalledVersionCode(),
     });
+  },
+
+  applyCheckResult: (outcome) => {
+    if (outcome.manifest) {
+      set({ latestRelease: outcome.manifest });
+    }
+    if (outcome.updateAvailable && outcome.manifest) {
+      set({
+        available: outcome.manifest,
+        lastMessage: outcome.message ?? `Update available: v${outcome.manifest.latestVersion}`,
+      });
+      const { usePrefsStore } = require('./prefsStore');
+      usePrefsStore.getState().syncHomeUpdateBanners(outcome.manifest.latestVersion);
+    } else {
+      set({ available: null, lastMessage: outcome.message ?? null });
+      const { usePrefsStore } = require('./prefsStore');
+      usePrefsStore.getState().syncHomeUpdateBanners(null);
+    }
   },
 
   openUpdateDownload: async () => {
@@ -106,7 +142,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
     }
     get().showUpdateModal({
       kind: 'available',
-      title: 'Update available',
+      title: `Update Available: v${available.latestVersion}`,
       message: available.changelog,
       manifest: available,
       force: available.forceUpdate,
@@ -137,6 +173,10 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       const result = await checkForAppUpdate();
       await markUpdateCheckComplete();
 
+      if (result.manifest) {
+        set({ latestRelease: result.manifest });
+      }
+
       if (result.status === 'available' && result.manifest) {
         set({
           available: result.manifest,
@@ -153,7 +193,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
         if (showModal) {
           get().showUpdateModal({
             kind: 'available',
-            title: 'Update available',
+            title: `Update Available: v${result.manifest.latestVersion}`,
             message: result.manifest.changelog,
             manifest: result.manifest,
             force: result.manifest.forceUpdate,

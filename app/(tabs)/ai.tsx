@@ -68,6 +68,13 @@ export default function AIScreen() {
   }, []);
 
   useEffect(() => {
+    if (keyboardVisible) {
+      const t = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+      return () => clearTimeout(t);
+    }
+  }, [keyboardVisible]);
+
+  useEffect(() => {
     if (isLoading) {
       Animated.loop(Animated.sequence([
         Animated.timing(dotAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
@@ -129,14 +136,17 @@ export default function AIScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {/* Messages list */}
         <ScrollView
           ref={scrollRef}
           style={s.msgs}
-          contentContainerStyle={s.msgsContent}
+          contentContainerStyle={[
+            s.msgsContent,
+            keyboardVisible && { paddingBottom: Math.max(keyboardHeight * 0.25, 24) },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
         >
@@ -196,8 +206,8 @@ export default function AIScreen() {
         <View style={[s.bar, {
           backgroundColor: C.bgCard,
           borderTopColor: C.border,
-          paddingBottom: keyboardVisible
-            ? Math.max(keyboardHeight - insets.bottom, 8) + 8
+          paddingBottom: keyboardHeight > 0
+            ? keyboardHeight
             : TAB_BAR_CLEARANCE + Math.max(insets.bottom, 0),
         }]}>
           <TextInput

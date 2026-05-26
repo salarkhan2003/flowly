@@ -1,7 +1,6 @@
 ﻿{
   "latestVersion": "1.0.2",
   "latestVersionCode": 3,
-  "apkUrl": "https://github.com/salarkhan2003/flowly/releases/latest/download/Flowly.apk",
-  "changelog": "• Fixed APK update install errors\n• Fixed keyboard covering inputs\n• Fixed Groq API in production\n• Fixed update modal UI overlap",
-  "forceUpdate": false
+  "apkUrl": "https://github.com/salarkhan2003/flowly/releases/download/v1.0.2/Flowly.apk",
+  "changelog": "• Fixed: Update popup showing when already on latest version\n• Fixed: Keyboard hiding AI chat bar, task inputs, and note editor\n• Added: Settings → AI to configure Groq API key\n• Fixed: Changelog text overlap in update modal\n• Added: Share button sends latest version link automatically"
 }

@@ -22,7 +22,7 @@ export default {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#050508',
       },
-      package: 'com.salarkhan.flowly',
+      package: 'com.flowly.app',
       versionCode: 3,
       softwareKeyboardLayoutMode: 'resize',
     },
@@ -41,10 +41,7 @@ export default {
       eas: {
         projectId: 'ea69c369-3d07-491b-bff8-66075237eec3',
       },
-      groqApiKey:
-        process.env.GROQ_API_KEY ??
-        process.env.EXPO_PUBLIC_GROQ_API_KEY ??
-        '',
+      groqApiKey: process.env.EXPO_PUBLIC_GROQ_API_KEY ?? '',
     },
     owner: 'salarkhan22s-organization',
   },

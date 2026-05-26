@@ -1,63 +1,55 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Radius, Shadows } from '../../constants/theme';
+import { Radius } from '../../constants/theme';
+import { checkUpdateAndNotify } from '../../lib/updates';
 import { useTheme } from '../../hooks/useTheme';
 import { useUpdateStore } from '../../stores/updateStore';
 
+/** Check only — shows alert; never downloads. */
 export function CheckForUpdatesButton() {
   const { C } = useTheme();
-  const isChecking = useUpdateStore((s) => s.isChecking);
-  const available = useUpdateStore((s) => s.available);
+  const [checking, setChecking] = useState(false);
   const installedVersion = useUpdateStore((s) => s.installedVersion);
-  const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
-  const openUpdateDownload = useUpdateStore((s) => s.openUpdateDownload);
+  const isCheckingStore = useUpdateStore((s) => s.isChecking);
+  const applyCheckResult = useUpdateStore((s) => s.applyCheckResult);
 
   const onPress = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (available) {
-      await openUpdateDownload();
-      return;
+    setChecking(true);
+    try {
+      const outcome = await checkUpdateAndNotify();
+      applyCheckResult(outcome);
+    } finally {
+      setChecking(false);
     }
-    await checkForUpdates({ force: true, showAlert: true });
   };
+
+  const busy = checking || isCheckingStore;
 
   return (
     <TouchableOpacity
-      style={[
-        styles.wrap,
-        {
-          backgroundColor: available ? C.accentDim : C.bgCardAlt,
-          borderColor: available ? C.borderGlow : C.border,
-        },
-        Shadows.soft,
-      ]}
+      style={[styles.wrap, { backgroundColor: C.bgCardAlt, borderColor: C.border }]}
       onPress={onPress}
-      disabled={isChecking}
+      disabled={busy}
       activeOpacity={0.88}
     >
-      <View style={[styles.iconRing, { backgroundColor: C.accent, borderColor: C.borderGlow }]}>
-        {isChecking ? (
-          <ActivityIndicator size="small" color={C.bg} />
+      <View style={[styles.iconRing, { backgroundColor: C.bgCard, borderColor: C.border }]}>
+        {busy ? (
+          <ActivityIndicator size="small" color={C.accent} />
         ) : (
-          <Text style={[styles.iconTxt, { color: C.bg }]}>{available ? '↓' : '↻'}</Text>
+          <Text style={[styles.iconTxt, { color: C.accent }]}>↻</Text>
         )}
       </View>
       <View style={styles.textCol}>
         <Text style={[styles.title, { color: C.textPrimary }]}>
-          {isChecking
-            ? 'Checking GitHub…'
-            : available
-              ? `Download v${available.latestVersion}`
-              : 'Check for updates'}
+          {busy ? 'Checking for updates…' : 'Check for updates'}
         </Text>
-        <Text style={[styles.sub, { color: C.textSecondary }]}>
-          {available
-            ? 'Opens latest APK in your browser'
-            : `Installed v${installedVersion} · version.json & GitHub Releases`}
+        <Text style={[styles.sub, { color: C.textMuted }]}>
+          Installed v{installedVersion} · version.json on GitHub
         </Text>
       </View>
-      <Text style={[styles.arrow, { color: C.accent }]}>{available ? '↗' : '›'}</Text>
+      <Text style={[styles.arrow, { color: C.textMuted }]}>›</Text>
     </TouchableOpacity>
   );
 }
@@ -66,23 +58,22 @@ const styles = StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
     padding: 14,
     borderRadius: Radius.lg,
-    borderWidth: 1.5,
-    marginBottom: 4,
+    borderWidth: 1,
   },
   iconRing: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconTxt: { fontSize: 20, fontWeight: '800' },
-  textCol: { flex: 1, gap: 3 },
-  title: { fontSize: 15, fontWeight: '800' },
-  sub: { fontSize: 11, lineHeight: 16 },
-  arrow: { fontSize: 22, fontWeight: '700' },
+  iconTxt: { fontSize: 18, fontWeight: '800' },
+  textCol: { flex: 1, gap: 2 },
+  title: { fontSize: 15, fontWeight: '700' },
+  sub: { fontSize: 11, lineHeight: 15 },
+  arrow: { fontSize: 20, fontWeight: '600' },
 });
