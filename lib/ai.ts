@@ -1,10 +1,16 @@
+import Constants from 'expo-constants';
 import { AIMessage } from '../types';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'llama-3.3-70b-versatile';
 
 function getApiKey(): string {
-  return (process.env.EXPO_PUBLIC_GROQ_API_KEY ?? '').trim();
+  const extra = Constants.expoConfig?.extra as { groqApiKey?: string } | undefined;
+  return (
+    extra?.groqApiKey?.trim() ??
+    process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim() ??
+    ''
+  );
 }
 
 export interface AppContext {

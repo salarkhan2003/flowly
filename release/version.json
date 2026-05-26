@@ -1,7 +1,7 @@
 ﻿{
-  "latestVersion": "1.0.1",
-  "latestVersionCode": 2,
+  "latestVersion": "1.0.2",
+  "latestVersionCode": 3,
   "apkUrl": "https://github.com/salarkhan2003/flowly/releases/latest/download/Flowly.apk",
-  "changelog": "• Fixed keyboard jumping\n• Added Join Team forms\n• Bug report forms\n• Light theme default",
+  "changelog": "• Fixed APK update install errors\n• Fixed keyboard covering inputs\n• Fixed Groq API in production\n• Fixed update modal UI overlap",
   "forceUpdate": false
 }

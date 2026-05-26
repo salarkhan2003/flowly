@@ -1,10 +1,11 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
 import {
-  Animated, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform,
+  Animated, FlatList, KeyboardAvoidingView, Modal, Platform,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Radius, Spacing, Typography } from '../../constants/theme';
+import { useKeyboard } from '../../hooks/useKeyboard';
 import { useTheme } from '../../hooks/useTheme';
 import { useAIStore } from '../../stores/aiStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -36,7 +37,7 @@ export default function AIScreen() {
   } = useAIStore();
 
   const [input, setInput] = useState('');
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const { keyboardHeight, keyboardVisible } = useKeyboard();
   const [showHistory, setShowHistory] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const dotAnim = useRef(new Animated.Value(0)).current;
@@ -45,17 +46,6 @@ export default function AIScreen() {
   const activeConvIdRef = useRef<string | null>(activeConversationId);
   useEffect(() => { activeConvIdRef.current = activeConversationId; }, [activeConversationId]);
   const activeConv = conversations.find((c) => c.id === activeConversationId);
-
-  useEffect(() => {
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvt, () => setKeyboardOpen(true));
-    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardOpen(false));
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   useEffect(() => {
     if (user?.id) loadConversations(user.id);
@@ -140,7 +130,7 @@ export default function AIScreen() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {/* Messages list */}
         <ScrollView
@@ -148,7 +138,7 @@ export default function AIScreen() {
           style={s.msgs}
           contentContainerStyle={s.msgsContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
         >
           {(!activeConv || activeConv.messages.length === 0) && (
             <View style={s.empty}>
@@ -206,8 +196,8 @@ export default function AIScreen() {
         <View style={[s.bar, {
           backgroundColor: C.bgCard,
           borderTopColor: C.border,
-          paddingBottom: keyboardOpen
-            ? Math.max(insets.bottom, 8)
+          paddingBottom: keyboardVisible
+            ? Math.max(keyboardHeight - insets.bottom, 8) + 8
             : TAB_BAR_CLEARANCE + Math.max(insets.bottom, 0),
         }]}>
           <TextInput

@@ -35,13 +35,13 @@ export function getInstalledVersionName(): string {
 
 /** Android versionCode — must increment every APK release. */
 export function getInstalledVersionCode(): number {
+  const fromConfig = Constants.expoConfig?.android?.versionCode;
+  if (typeof fromConfig === 'number') return fromConfig;
   const build = Application.nativeBuildVersion;
   if (build) {
     const parsed = parseInt(build, 10);
     if (!Number.isNaN(parsed)) return parsed;
   }
-  const fromConfig = Constants.expoConfig?.android?.versionCode;
-  if (typeof fromConfig === 'number') return fromConfig;
   return 1;
 }
 
@@ -90,13 +90,10 @@ function parseManifest(data: unknown): UpdateManifest | null {
   };
 }
 
+/** Primary check: Android versionCode from the installed APK (not semver string alone). */
 export function isUpdateAvailable(manifest: UpdateManifest): boolean {
   const installedCode = getInstalledVersionCode();
-  const installedName = normalizeVersion(getInstalledVersionName());
-
-  if (manifest.latestVersionCode > installedCode) return true;
-  if (manifest.latestVersionCode < installedCode) return false;
-  return compareSemver(manifest.latestVersion, installedName) > 0;
+  return manifest.latestVersionCode > installedCode;
 }
 
 async function fetchJson(url: string): Promise<unknown | null> {

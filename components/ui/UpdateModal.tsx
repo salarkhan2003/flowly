@@ -15,6 +15,7 @@ import { GlowButton } from './GlowButton';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import type { UpdateManifest } from '../../lib/updates';
+import { getInstalledVersionName } from '../../lib/updates';
 
 export type UpdateModalKind = 'checking' | 'available' | 'up_to_date' | 'error' | 'link_error';
 
@@ -52,6 +53,38 @@ function ModalIcon({ kind }: { kind: UpdateModalKind }) {
   );
 }
 
+function ChangelogLine({ line }: { line: string }) {
+  const { C } = useTheme();
+  const parts = line.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+
+  if (parts.length === 1 && !line.includes('**')) {
+    return (
+      <View style={styles.changelogRow}>
+        <View style={[styles.bullet, { backgroundColor: C.accent }]} />
+        <Text style={[styles.changelogLine, { color: C.textSecondary }]}>{line}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.changelogRow}>
+      <View style={[styles.bullet, { backgroundColor: C.accent }]} />
+      <Text style={[styles.changelogLine, { color: C.textSecondary }]}>
+        {parts.map((part, i) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return (
+              <Text key={i} style={{ fontWeight: '700', color: C.textPrimary }}>
+                {part.slice(2, -2)}
+              </Text>
+            );
+          }
+          return part;
+        })}
+      </Text>
+    </View>
+  );
+}
+
 function ChangelogList({ text }: { text: string }) {
   const { C } = useTheme();
   const lines = text
@@ -62,14 +95,16 @@ function ChangelogList({ text }: { text: string }) {
   if (lines.length === 0) return null;
 
   return (
-    <View style={[styles.changelogBox, { backgroundColor: C.bgCardAlt, borderColor: C.border }]}>
+    <ScrollView
+      style={[styles.changelogScroll, { backgroundColor: C.bgCardAlt, borderColor: C.border }]}
+      contentContainerStyle={styles.changelogScrollContent}
+      showsVerticalScrollIndicator
+      nestedScrollEnabled
+    >
       {lines.map((line, i) => (
-        <View key={`${i}-${line}`} style={styles.changelogRow}>
-          <View style={[styles.bullet, { backgroundColor: C.accent }]} />
-          <Text style={[styles.changelogLine, { color: C.textSecondary }]}>{line}</Text>
-        </View>
+        <ChangelogLine key={`${i}-${line.slice(0, 24)}`} line={line} />
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -87,6 +122,8 @@ export function UpdateModal({
   const { C } = useTheme();
   const scale = useRef(new Animated.Value(0.92)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+
+  const installedLabel = installedVersion ?? getInstalledVersionName();
 
   useEffect(() => {
     if (visible) {
@@ -132,11 +169,9 @@ export function UpdateModal({
                   <Text style={[styles.versionPillText, { color: C.accent }]}>
                     v{manifest.latestVersion}
                   </Text>
-                  {installedVersion ? (
-                    <Text style={[styles.versionFrom, { color: C.textMuted }]}>
-                      from v{installedVersion}
-                    </Text>
-                  ) : null}
+                  <Text style={[styles.versionFrom, { color: C.textMuted }]}>
+                    from v{installedLabel}
+                  </Text>
                 </View>
               ) : null}
 
@@ -153,26 +188,26 @@ export function UpdateModal({
                   </Text>
                 </ScrollView>
               ) : null}
+            </View>
 
-              <View style={styles.actions}>
-                {kind === 'checking' ? null : kind === 'available' ? (
-                  <>
-                    {!force ? (
-                      <GlowButton label="Later" onPress={handleClose} variant="ghost" fullWidth />
-                    ) : null}
-                    <GlowButton
-                      label={`Download Flowly ${manifest?.latestVersion ?? ''}`.trim()}
-                      onPress={handleDownload}
-                      variant="primary"
-                      fullWidth
-                    />
-                  </>
-                ) : kind === 'up_to_date' ? (
-                  <GlowButton label="Got it" onPress={handleClose} variant="primary" fullWidth />
-                ) : (
-                  <GlowButton label="OK" onPress={handleClose} variant="secondary" fullWidth />
-                )}
-              </View>
+            <View style={[styles.actions, { borderTopColor: C.border }]}>
+              {kind === 'checking' ? null : kind === 'available' ? (
+                <>
+                  {!force ? (
+                    <GlowButton label="Later" onPress={handleClose} variant="ghost" fullWidth />
+                  ) : null}
+                  <GlowButton
+                    label={`Download Flowly ${manifest?.latestVersion ?? ''}`.trim()}
+                    onPress={handleDownload}
+                    variant="primary"
+                    fullWidth
+                  />
+                </>
+              ) : kind === 'up_to_date' ? (
+                <GlowButton label="Got it" onPress={handleClose} variant="primary" fullWidth />
+              ) : (
+                <GlowButton label="OK" onPress={handleClose} variant="secondary" fullWidth />
+              )}
             </View>
           </ClayCard>
         </Animated.View>
@@ -200,6 +235,7 @@ const styles = StyleSheet.create({
   },
   cardInner: {
     padding: Spacing.lg,
+    paddingBottom: Spacing.md,
     alignItems: 'center',
     gap: Spacing.sm,
   },
@@ -239,13 +275,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 4,
   },
-  changelogBox: {
+  changelogScroll: {
     width: '100%',
+    maxHeight: 400,
     borderRadius: Radius.md,
     borderWidth: 1,
+  },
+  changelogScrollContent: {
     padding: Spacing.md,
     gap: 8,
-    maxHeight: 160,
   },
   changelogRow: {
     flexDirection: 'row',
@@ -273,7 +311,9 @@ const styles = StyleSheet.create({
   urlText: { fontSize: 11, lineHeight: 16 },
   actions: {
     width: '100%',
+    padding: Spacing.lg,
+    paddingTop: Spacing.md,
     gap: 10,
-    marginTop: Spacing.sm,
+    borderTopWidth: 1,
   },
 });

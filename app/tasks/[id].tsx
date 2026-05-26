@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FormScrollLayout } from '../../components/forms/FormScrollLayout';
 import { showConfirm } from '../../lib/alert';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -106,7 +107,7 @@ export default function TaskDetailScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <FormScrollLayout contentContainerStyle={s.content}>
         {/* Title */}
         <TextInput
           style={[s.titleInput, { color: C.textPrimary, borderBottomColor: C.border }]}
@@ -213,7 +214,7 @@ export default function TaskDetailScreen() {
         </ClayCard>
 
         <GlowButton label={isNew ? 'Create Task' : 'Save Changes'} onPress={handleSave} size="lg" style={s.saveBtn} fullWidth />
-      </ScrollView>
+      </FormScrollLayout>
     </SafeAreaView>
   );
 }
