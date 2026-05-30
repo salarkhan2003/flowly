@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { Radius } from '../../constants/theme';
+import { getClayToneColor, Radius, type ClayTone } from '../../constants/theme';
 
 interface ClayCardProps {
   children: React.ReactNode;
@@ -9,6 +9,7 @@ interface ClayCardProps {
   glowing?: boolean;
   cyan?: boolean;
   nav?: boolean;
+  tone?: ClayTone;
   variant?: 'default' | 'alt' | 'glass' | 'deep';
 }
 
@@ -18,9 +19,12 @@ export function ClayCard({
   glowing = false,
   cyan = false,
   nav = false,
+  tone = 'default',
   variant = 'default',
 }: ClayCardProps) {
   const { C } = useTheme();
+
+  const toneColor = getClayToneColor(tone);
 
   const bg =
     variant === 'glass'
@@ -29,16 +33,16 @@ export function ClayCard({
         ? C.bgCardAlt
         : variant === 'deep'
           ? C.bgCardDeep
-          : C.bgCard;
+          : tone !== 'default'
+            ? toneColor + (tone === 'yellow' ? '14' : '12')
+            : C.bgCard;
 
-  const glowColor = nav ? C.accent : cyan ? C.cyan : C.accent;
+  const glowColor = nav ? C.accent : cyan ? C.cyan : tone !== 'default' ? toneColor : C.accent;
   const borderColor = glowing
-    ? nav
-      ? C.borderGlow
-      : cyan
-        ? C.borderCyan
-        : C.borderGlow
-    : C.border;
+    ? glowColor + '88'
+    : tone !== 'default'
+      ? toneColor + '55'
+      : C.border;
 
   return (
     <View
@@ -47,16 +51,22 @@ export function ClayCard({
         {
           backgroundColor: bg,
           borderColor,
-          shadowColor: glowing ? glowColor : '#000',
-          shadowOpacity: glowing ? 0.38 : 0.6,
-          shadowRadius: glowing ? 22 : 20,
+          borderWidth: tone !== 'default' || glowing ? 2 : 1,
+          shadowColor: glowing || tone !== 'default' ? glowColor : '#1A2E28',
+          shadowOpacity: glowing ? 0.32 : tone !== 'default' ? 0.2 : 0.12,
+          shadowRadius: glowing ? 26 : 22,
         },
         style,
       ]}
     >
-      <View style={[styles.highlight, { backgroundColor: C.bgGlassLight }]} pointerEvents="none" />
-      <View style={[styles.innerShadow, { borderColor: C.borderLight }]} pointerEvents="none" />
-      {children}
+      <View style={[styles.highlight, { backgroundColor: C.clayHighlight }]} pointerEvents="none" />
+      <View
+        style={[styles.innerBevel, { borderColor: C.borderLight }]}
+        pointerEvents="none"
+      />
+      <View style={styles.content} pointerEvents="box-none">
+        {children}
+      </View>
     </View>
   );
 }
@@ -64,27 +74,32 @@ export function ClayCard({
 const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.xl,
-    borderWidth: 1,
     overflow: 'hidden',
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 14,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 16,
   },
   highlight: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
+    left: 16,
+    right: 16,
+    height: 3,
+    borderRadius: 2,
     zIndex: 1,
+    opacity: 0.85,
   },
-  innerShadow: {
+  innerBevel: {
     position: 'absolute',
-    top: 1,
-    left: 1,
-    right: 1,
-    bottom: 1,
-    borderRadius: Radius.xl - 1,
+    top: 2,
+    left: 2,
+    right: 2,
+    bottom: 2,
+    borderRadius: Radius.xl - 2,
     borderWidth: 1,
     zIndex: 0,
+  },
+  content: {
+    position: 'relative',
+    zIndex: 2,
   },
 });

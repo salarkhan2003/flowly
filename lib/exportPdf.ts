@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import type { Note, Project, Task, User } from '../types';
 import { formatDueDate } from './dates';
 import { htmlToPlainText } from './noteContent';
+import { logError } from './firebase';
 
 function esc(s: string): string {
   return s
@@ -194,20 +195,25 @@ export async function exportFlowlyPdf(params: {
   tasks: Task[];
   projects: Project[];
 }): Promise<void> {
-  const html = buildHtml(params);
-  const { uri } = await Print.printToFileAsync({
-    html,
-    base64: false,
-  });
+  try {
+    const html = buildHtml(params);
+    const { uri } = await Print.printToFileAsync({
+      html,
+      base64: false,
+    });
 
-  const canShare = await Sharing.isAvailableAsync();
-  if (!canShare) {
-    throw new Error('Sharing is not available on this device');
+    const canShare = await Sharing.isAvailableAsync();
+    if (!canShare) {
+      throw new Error('Sharing is not available on this device');
+    }
+
+    await Sharing.shareAsync(uri, {
+      mimeType: 'application/pdf',
+      UTI: 'com.adobe.pdf',
+      dialogTitle: 'Export Flowly PDF',
+    });
+  } catch (e) {
+    logError(e, 'exportFlowlyPdf');
+    throw e;
   }
-
-  await Sharing.shareAsync(uri, {
-    mimeType: 'application/pdf',
-    UTI: 'com.adobe.pdf',
-    dialogTitle: 'Export Flowly PDF',
-  });
 }

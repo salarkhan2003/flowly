@@ -185,7 +185,7 @@ export function UpdateModal({
                 {kind === 'checking' ? null : kind === 'available' ? (
                   <>
                     {!force ? (
-                      <GlowButton label="Later" onPress={handleClose} variant="ghost" fullWidth />
+                      <GlowButton label="Close" onPress={handleClose} variant="ghost" fullWidth />
                     ) : null}
                     <GlowButton
                       label={`Download v${manifest?.latestVersion ?? ''}`.trim()}

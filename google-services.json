@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "342758961036",
+    "project_id": "flowly-80906",
+    "storage_bucket": "flowly-80906.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:342758961036:android:da4f38ca2b4b4b0d2c30a9",
+        "android_client_info": {
+          "package_name": "com.flowly.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDktyz6Gv-hdGfdN4uCbxn_7qty7-L5vUg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

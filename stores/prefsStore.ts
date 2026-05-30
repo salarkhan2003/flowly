@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { isUpdateAvailable, type UpdateManifest } from '../lib/updates';
 import { storage } from '../lib/storage';
+import { applyAnalyticsConsent, setAnalyticsEnabledFlag } from '../lib/analyticsConsent';
+import { setFirebaseAnalyticsEnabled } from '../lib/firebase';
 
 const MS_24H = 24 * 60 * 60 * 1000;
 
@@ -10,7 +12,9 @@ interface PrefsState {
   showUpdateBanner: boolean;
   showCheckUpdatesBanner: boolean;
   telegramPromptDismissed: boolean;
+  analyticsEnabled: boolean;
   init: () => Promise<void>;
+  setAnalyticsEnabled: (enabled: boolean) => Promise<void>;
   snoozeTeamBanner24h: () => Promise<void>;
   markTeamJoined: () => Promise<void>;
   snoozeUpdateBanner24h: (version: string) => Promise<void>;
@@ -48,6 +52,7 @@ export const usePrefsStore = create<PrefsState>((set) => ({
   showUpdateBanner: false,
   showCheckUpdatesBanner: false,
   telegramPromptDismissed: false,
+  analyticsEnabled: true,
 
   init: async () => {
     const [
@@ -58,6 +63,7 @@ export const usePrefsStore = create<PrefsState>((set) => ({
       updateSnoozeUntil,
       updateSnoozeVersion,
       checkSnoozeUntil,
+      analyticsEnabled,
     ] = await Promise.all([
       storage.get<number>('team_banner_snooze_until'),
       storage.get<boolean>('team_joined'),
@@ -66,6 +72,7 @@ export const usePrefsStore = create<PrefsState>((set) => ({
       storage.get<number>('update_banner_snooze_until'),
       storage.get<string>('update_banner_snooze_version'),
       storage.get<number>('check_updates_banner_snooze_until'),
+      storage.get<boolean>('analytics_enabled'),
     ]);
 
     let snooze = snoozeUntil ?? null;
@@ -76,13 +83,26 @@ export const usePrefsStore = create<PrefsState>((set) => ({
     }
 
     const hasJoined = !!joined;
+    const analyticsOn = analyticsEnabled !== false;
+    setAnalyticsEnabledFlag(analyticsOn);
     set({
       showTeamBanner: shouldShowTeamBanner(snooze, hasJoined),
       teamJoined: hasJoined,
       telegramPromptDismissed: !!telegram,
       showUpdateBanner: false,
       showCheckUpdatesBanner: shouldShowSnoozedBanner(checkSnoozeUntil ?? null),
+      analyticsEnabled: analyticsOn,
     });
+    applyAnalyticsConsent(analyticsOn);
+    await setFirebaseAnalyticsEnabled(analyticsOn);
+  },
+
+  setAnalyticsEnabled: async (enabled) => {
+    await storage.set('analytics_enabled', enabled);
+    setAnalyticsEnabledFlag(enabled);
+    set({ analyticsEnabled: enabled });
+    applyAnalyticsConsent(enabled);
+    await setFirebaseAnalyticsEnabled(enabled);
   },
 
   syncHomeUpdateBanners: async (manifest) => {

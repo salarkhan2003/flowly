@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PostHogProvider } from 'posthog-react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -11,13 +12,60 @@ import { AppModalHost } from '../components/AppModalHost';
 import { QuickCapturePicker } from '../components/home/QuickCapturePicker';
 import { ForceUpdateGate } from '../components/ForceUpdateGate';
 import { UpdateModalHost } from '../components/UpdateModalHost';
+import { AnalyticsBootstrap } from '../components/AnalyticsBootstrap';
+import { AppErrorBoundary } from '../components/AppErrorBoundary';
 import { getColors } from '../constants/theme';
 import { cacheInstalledVersionCode } from '../lib/updates';
 import { useUpdateStore } from '../stores/updateStore';
 import { usePrefsStore } from '../stores/prefsStore';
 import { stabilizeDevKeepAwake } from '../lib/devKeepAwake';
+import { getPostHogApiKey, getPostHogOptions } from '../lib/posthog';
+import { ensureAiReadyOnLaunch } from '../lib/aiBootstrap';
 
 SplashScreen.preventAutoHideAsync();
+
+function AppShell() {
+  const mode = useThemeStore((s) => s.mode);
+  const C = getColors(mode);
+  return (
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: C.bg }}>
+      <SafeAreaProvider>
+        <AnalyticsBootstrap />
+        <ForceUpdateGate>
+          <StatusBar style={mode === 'light' ? 'dark' : 'light'} backgroundColor={C.bg} />
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="hub" />
+            <Stack.Screen name="forms" />
+            <Stack.Screen
+              name="settings/ai"
+              options={{ presentation: 'card', animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="notes/[id]"
+              options={{ presentation: 'card', animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="tasks/[id]"
+              options={{ presentation: 'card', animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="projects/[id]"
+              options={{ presentation: 'card', animation: 'slide_from_right' }}
+            />
+            <Stack.Screen name="modals/quick-capture" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="modals/ai-command" options={{ presentation: 'modal' }} />
+          </Stack>
+          <UpdateModalHost />
+          <AppModalHost />
+          <QuickCapturePicker />
+        </ForceUpdateGate>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
 
 export default function RootLayout() {
   const init = useAuthStore((s) => s.init);
@@ -26,44 +74,34 @@ export default function RootLayout() {
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
   const refreshLatestRelease = useUpdateStore((s) => s.refreshLatestRelease);
   const refreshInstalledVersion = useUpdateStore((s) => s.refreshInstalledVersion);
+  const posthogKey = getPostHogApiKey();
 
   useEffect(() => {
     Promise.all([init(), initTheme(), initPrefs()]).then(async () => {
+      await ensureAiReadyOnLaunch().catch(() => {});
       await cacheInstalledVersionCode();
       refreshInstalledVersion();
       SplashScreen.hideAsync();
       await refreshLatestRelease().catch(() => {});
-      checkForUpdates().catch(() => {});
+      checkForUpdates({ showOnLaunch: true }).catch(() => {});
     });
     requestNotificationPermissions().catch(() => {});
     stabilizeDevKeepAwake().catch(() => {});
   }, []);
 
-  const mode = useThemeStore((s) => s.mode);
-  const C = getColors(mode);
+  const tree = (
+    <AppErrorBoundary>
+      <AppShell />
+    </AppErrorBoundary>
+  );
+
+  if (!posthogKey) {
+    return tree;
+  }
+
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: C.bg }}>
-      <SafeAreaProvider>
-        <ForceUpdateGate>
-        <StatusBar style={mode === 'light' ? 'dark' : 'light'} backgroundColor={C.bg} />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="hub" />
-          <Stack.Screen name="forms" />
-          <Stack.Screen name="settings/ai" options={{ presentation: 'card', animation: 'slide_from_right' }} />
-          <Stack.Screen name="notes/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
-          <Stack.Screen name="tasks/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
-          <Stack.Screen name="projects/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
-          <Stack.Screen name="modals/quick-capture" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="modals/ai-command" options={{ presentation: 'modal' }} />
-        </Stack>
-        <UpdateModalHost />
-        <AppModalHost />
-        <QuickCapturePicker />
-        </ForceUpdateGate>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <PostHogProvider apiKey={posthogKey} options={getPostHogOptions()} autocapture={false}>
+      {tree}
+    </PostHogProvider>
   );
 }

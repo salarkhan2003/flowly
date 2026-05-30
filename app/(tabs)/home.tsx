@@ -10,7 +10,7 @@ import { NoteCard } from '../../components/notes/NoteCard';
 import { TaskItem } from '../../components/tasks/TaskItem';
 import { ClayCard } from '../../components/ui/ClayCard';
 import { FAB } from '../../components/ui';
-import { Radius, Spacing } from '../../constants/theme';
+import { ClayCategory, Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../stores/authStore';
 import { useNotesStore } from '../../stores/notesStore';
@@ -156,18 +156,18 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.statsRow}>
-          <StatPill label="Tasks" value={activeTasks} color={C.pastelMint} onPress={() => router.push('/(tabs)/tasks')} />
-          <StatPill label="Notes" value={notes.length} color={C.pastelSky} onPress={() => router.push('/(tabs)/notes')} />
-          <StatPill label="Done" value={doneCount} color={C.pastelLavender} onPress={() => router.push('/hub/completed')} />
-          <StatPill label="Projects" value={projects.length} color={C.pastelPeach} onPress={() => router.push('/hub/projects')} />
+          <StatPill label="Tasks" value={activeTasks} color={ClayCategory.tasks} onPress={() => router.push('/(tabs)/tasks')} />
+          <StatPill label="Notes" value={notes.length} color={ClayCategory.notes} onPress={() => router.push('/(tabs)/notes')} />
+          <StatPill label="Done" value={doneCount} color={ClayCategory.ai} onPress={() => router.push('/hub/completed')} />
+          <StatPill label="Projects" value={projects.length} color={ClayCategory.projects} onPress={() => router.push('/hub/projects')} />
         </View>
 
         <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Explore</Text>
         <View style={styles.hubGrid}>
-          <HubTile label="Calendar" sub="Schedule" letter="C" color={C.pastelPeach} onPress={() => router.push('/hub/calendar')} />
-          <HubTile label="Projects" sub={`${projects.length} active`} letter="P" color={C.pastelLavender} onPress={() => router.push('/hub/projects')} />
-          <HubTile label="AI Chat" sub="Ask Flowly" letter="AI" color={C.pastelSky} onPress={() => router.push('/(tabs)/ai')} />
-          <HubTile label="Completed" sub="Archive" letter="✓" color={C.pastelMint} onPress={() => router.push('/hub/completed')} />
+          <HubTile label="Calendar" sub="Schedule" letter="C" color={ClayCategory.yellow} onPress={() => router.push('/hub/calendar')} />
+          <HubTile label="Projects" sub={`${projects.length} active`} letter="P" color={ClayCategory.purple} onPress={() => router.push('/hub/projects')} />
+          <HubTile label="AI Chat" sub="Ask Flowly" letter="AI" color={ClayCategory.coral} onPress={() => router.push('/(tabs)/ai')} />
+          <HubTile label="Completed" sub="Archive" letter="✓" color={ClayCategory.ai} onPress={() => router.push('/hub/completed')} />
         </View>
 
         <DailyBriefCard />

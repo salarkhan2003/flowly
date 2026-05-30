@@ -6,6 +6,8 @@ import { useAuthStore } from './authStore';
 import { useNotesStore } from './notesStore';
 import { useTasksStore } from './tasksStore';
 import { useProjectsStore } from './projectsStore';
+import { inferAiMessageAction, trackAiMessageSent } from '../lib/posthog';
+import { logError } from '../lib/firebase';
 
 interface AIState {
   conversations: AIConversation[];
@@ -245,6 +247,8 @@ export const useAIStore = create<AIState>((set, get) => ({
       }));
     }
 
+    trackAiMessageSent(inferAiMessageAction(content));
+
     try {
       const rawReply = await sendAIMessage({
         messages: [...historyMessages, userMsg],
@@ -270,6 +274,7 @@ export const useAIStore = create<AIState>((set, get) => ({
         return { conversations, isLoading: false, isStreaming: false, streamingText: '' };
       });
     } catch (err) {
+      logError(err, 'aiStore:sendMessage');
       const errMsg = err instanceof Error ? err.message : String(err);
       const errorMsg: AIMessage = {
         id: `msg_err_${Date.now()}`,

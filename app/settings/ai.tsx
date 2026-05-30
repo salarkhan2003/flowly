@@ -1,58 +1,63 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { FormScrollLayout } from '../../components/forms/FormScrollLayout';
+import { ClayCard } from '../../components/ui/ClayCard';
 import { GlowButton } from '../../components/ui';
-import { Radius, Spacing, Typography } from '../../constants/theme';
+import { ClayCategory, Radius, Spacing, Typography } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
-import { testGroqApiKey } from '../../lib/ai';
+import { testAiConnection } from '../../lib/ai';
 import { showError, showSuccess } from '../../lib/alert';
 import {
-  clearUserGroqApiKey,
+  AI_PROVIDERS,
+  type AiKeySource,
+  type AiProviderId,
+  clearUserApiKey,
+  defaultModelForProvider,
   getBundledGroqApiKey,
-  getGroqKeyStatus,
-  saveUserGroqApiKey,
-} from '../../lib/groqKey';
-
-const SECURE_KEY = 'groq_api_key';
+  getProviderDef,
+  getUserApiKey,
+  isGroqBundledInBuild,
+  isValidModel,
+  loadAiUserConfig,
+  saveAiUserConfig,
+  saveUserApiKey,
+} from '../../lib/aiConfig';
 
 export default function AISettingsScreen() {
   const { C } = useTheme();
+  const [keySource, setKeySource] = useState<AiKeySource>('bundled');
+  const [provider, setProvider] = useState<AiProviderId>('groq');
+  const [model, setModel] = useState('llama-3.3-70b-versatile');
   const [keyInput, setKeyInput] = useState('');
   const [hasBundled, setHasBundled] = useState(false);
-  const [aiReady, setAiReady] = useState(false);
-  const [hasOverride, setHasOverride] = useState(false);
   const [testing, setTesting] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const effectiveProvider: AiProviderId = keySource === 'bundled' ? 'groq' : provider;
+  const providerDef = useMemo(() => getProviderDef(effectiveProvider), [effectiveProvider]);
+  const models = providerDef.models;
+
   const load = useCallback(async () => {
     setLoading(true);
-    setHasBundled(!!getBundledGroqApiKey());
-    const status = await getGroqKeyStatus();
-    setAiReady(status.ready);
-    try {
-      const stored = await SecureStore.getItemAsync(SECURE_KEY);
-      if (stored?.trim()) {
-        setKeyInput(stored.trim());
-        setHasOverride(true);
-      } else {
-        setKeyInput('');
-        setHasOverride(false);
-      }
-    } catch {
-      setKeyInput('');
-      setHasOverride(false);
-    }
+    setHasBundled(isGroqBundledInBuild());
+    const config = await loadAiUserConfig();
+    setKeySource(config.keySource);
+    setProvider(config.provider);
+    setModel(config.model);
+    const stored = await getUserApiKey();
+    setKeyInput(stored ?? '');
     setLoading(false);
   }, []);
 
@@ -60,132 +65,232 @@ export default function AISettingsScreen() {
     load();
   }, [load]);
 
+  const resolveTestKey = (): string => {
+    if (keySource === 'bundled') return getBundledGroqApiKey();
+    return keyInput.trim();
+  };
+
   const handleSave = async () => {
-    const trimmed = keyInput.trim();
-    if (!trimmed) {
-      await clearUserGroqApiKey();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showSuccess('Using app default', hasBundled ? 'Built-in Groq key is active.' : 'Add a key if AI is unavailable.');
-      setHasOverride(false);
-      setTimeout(() => router.back(), 500);
-      return;
+    if (keySource === 'custom') {
+      const trimmed = keyInput.trim();
+      if (!trimmed) {
+        showError('API key required', `Paste your ${providerDef.name} key to continue.`);
+        return;
+      }
+      await saveUserApiKey(trimmed);
     }
-    if (!trimmed.startsWith('gsk_')) {
-      showError('Invalid key', 'Groq keys usually start with gsk_');
-      return;
-    }
-    await saveUserGroqApiKey(trimmed);
-    setHasOverride(true);
+
+    await saveAiUserConfig({
+      keySource,
+      provider: keySource === 'bundled' ? 'groq' : provider,
+      model,
+    });
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    showSuccess('API key saved', 'Your key is stored securely on this device.');
-    setTimeout(() => router.back(), 500);
+    const label = keySource === 'bundled' ? 'App default (Groq)' : providerDef.name;
+    showSuccess('AI ready', `${label} · ${model}`);
+    setTimeout(() => router.back(), 450);
   };
 
   const handleTest = async () => {
-    const key = keyInput.trim() || getBundledGroqApiKey();
+    const key = resolveTestKey();
     if (!key) {
-      showError('No key', 'Enter a key or use a build with a bundled default.');
+      showError(
+        'No API key',
+        keySource === 'bundled'
+          ? 'This build has no embedded Groq key. Use Custom API or add EXPO_PUBLIC_GROQ_API_KEY for dev.'
+          : `Enter your ${providerDef.name} API key below.`
+      );
       return;
     }
+    const testProvider = keySource === 'bundled' ? 'groq' : provider;
+    const testModel =
+      keySource === 'bundled'
+        ? isValidModel('groq', model)
+          ? model
+          : defaultModelForProvider('groq')
+        : model;
     setTesting(true);
-    const result = await testGroqApiKey(key);
+    const result = await testAiConnection(testProvider, key, testModel);
     setTesting(false);
-    if (result.ok) {
-      showSuccess('Test passed', result.message);
-    } else {
-      showError('Test failed', result.message);
-    }
-  };
-
-  const handleClear = async () => {
-    await clearUserGroqApiKey();
-    setKeyInput('');
-    setHasOverride(false);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (result.ok) showSuccess('Connected', result.message);
+    else showError('Connection failed', result.message);
   };
 
   return (
-    <SafeAreaView style={[s.container, { backgroundColor: C.bg }]}>
+    <SafeAreaView style={[s.root, { backgroundColor: C.bg }]}>
       <View style={[s.header, { borderBottomColor: C.border }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[s.backBtn, { backgroundColor: C.bgCard, borderColor: C.border }]}
-        >
-          <View style={[s.backArrow, { borderColor: C.accent }]} />
+        <TouchableOpacity onPress={() => router.back()} style={[s.back, { borderColor: C.border, backgroundColor: C.bgCard }]}>
+          <View style={[s.backArrow, { borderColor: ClayCategory.purple }]} />
         </TouchableOpacity>
-        <Text style={[s.headerTitle, { color: C.textPrimary }]}>AI Settings</Text>
-        <View style={s.headerSpacer} />
+        <Text style={[s.headerTitle, { color: C.textPrimary }]}>AI setup</Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <FormScrollLayout contentContainerStyle={s.content}>
-        <Text style={[s.lead, { color: C.textSecondary }]}>
-          Get a free key at console.groq.com. Leave empty to use the app default when available.
-        </Text>
+      <FormScrollLayout contentContainerStyle={s.scroll}>
+        <ClayCard tone="purple" glowing style={s.hero}>
+          <Text style={[s.heroTag, { color: ClayCategory.purple }]}>FLOWLY AI</Text>
+          <Text style={[s.heroTitle, { color: C.textPrimary }]}>Connect your assistant</Text>
+          <Text style={[s.heroBody, { color: C.textSecondary }]}>
+            Groq, Gemini, Claude, OpenAI, Qwen, or DeepSeek. Keys stay on your device.
+          </Text>
+        </ClayCard>
 
-        {aiReady ? (
-          <View style={[s.banner, { backgroundColor: C.successDim, borderColor: C.borderGlow }]}>
-            <Text style={[s.bannerText, { color: C.accent }]}>
-              {hasBundled
-                ? 'AI is ready — this APK includes a built-in Groq key.'
-                : 'AI is ready — using your saved API key.'}
-              {hasBundled && hasOverride ? ' Your key overrides the built-in key.' : ''}
+        <Text style={[s.label, { color: C.textMuted }]}>CONNECTION</Text>
+        <View style={s.row2}>
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setKeySource('bundled');
+              setProvider('groq');
+              setModel(defaultModelForProvider('groq'));
+            }}
+            style={[
+              s.chip,
+              {
+                flex: 1,
+                backgroundColor: keySource === 'bundled' ? ClayCategory.ai + '22' : C.bgCard,
+                borderColor: keySource === 'bundled' ? ClayCategory.ai : C.border,
+              },
+            ]}
+          >
+            <Text style={[s.chipTitle, { color: C.textPrimary }]}>App default</Text>
+            <Text style={[s.chipSub, { color: C.textMuted }]}>
+              {hasBundled ? 'Groq · built-in' : 'Not in this build'}
             </Text>
-          </View>
-        ) : (
-          <View style={[s.banner, { backgroundColor: C.warningDim, borderColor: C.warning + '40' }]}>
-            <Text style={[s.bannerText, { color: C.warning }]}>
-              AI not configured — add your Groq API key below (get one free at console.groq.com).
-            </Text>
-          </View>
-        )}
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setKeySource('custom');
+            }}
+            style={[
+              s.chip,
+              {
+                flex: 1,
+                backgroundColor: keySource === 'custom' ? ClayCategory.coral + '22' : C.bgCard,
+                borderColor: keySource === 'custom' ? ClayCategory.coral : C.border,
+              },
+            ]}
+          >
+            <Text style={[s.chipTitle, { color: C.textPrimary }]}>My API key</Text>
+            <Text style={[s.chipSub, { color: C.textMuted }]}>Any provider</Text>
+          </Pressable>
+        </View>
 
-        <Text style={[s.label, { color: C.textMuted }]}>GROQ API KEY (OPTIONAL OVERRIDE)</Text>
-        <TextInput
-          style={[s.input, { color: C.textPrimary, backgroundColor: C.bgCard, borderColor: C.border }]}
-          value={keyInput}
-          onChangeText={setKeyInput}
-          placeholder="gsk_... (leave empty for app default)"
-          placeholderTextColor={C.textMuted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          secureTextEntry
-          editable={!loading}
-        />
+        {keySource === 'custom' ? (
+          <>
+            <Text style={[s.label, { color: C.textMuted }]}>PROVIDER</Text>
+            <View style={s.providerGrid}>
+              {AI_PROVIDERS.map((p) => {
+                const on = provider === p.id;
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setProvider(p.id);
+                      setModel(defaultModelForProvider(p.id));
+                    }}
+                    style={[
+                      s.providerChip,
+                      {
+                        backgroundColor: on ? p.color + '22' : C.bgCard,
+                        borderColor: on ? p.color : C.border,
+                      },
+                    ]}
+                  >
+                    <View style={[s.providerDot, { backgroundColor: p.color }]} />
+                    <Text style={[s.providerName, { color: C.textPrimary }]}>{p.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <ClayCard tone="coral" style={s.keyCard}>
+              <View style={s.keyHead}>
+                <Text style={[s.keyLabel, { color: ClayCategory.coral }]}>API KEY</Text>
+                <TouchableOpacity onPress={() => Linking.openURL(providerDef.docsUrl)}>
+                  <Text style={[s.link, { color: C.accent }]}>Get key</Text>
+                </TouchableOpacity>
+              </View>
+              <TextInput
+                style={[s.input, { color: C.textPrimary, backgroundColor: C.bgCardAlt, borderColor: C.border }]}
+                value={keyInput}
+                onChangeText={setKeyInput}
+                placeholder={providerDef.keyHint}
+                placeholderTextColor={C.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+              />
+              <TouchableOpacity onPress={() => clearUserApiKey().then(() => setKeyInput(''))}>
+                <Text style={[s.clear, { color: C.danger }]}>Clear saved key</Text>
+              </TouchableOpacity>
+            </ClayCard>
+          </>
+        ) : null}
+
+        <Text style={[s.label, { color: C.textMuted }]}>MODEL</Text>
+        <View style={s.modelList}>
+          {models.map((m) => {
+            const picked = model === m.id;
+            return (
+              <Pressable
+                key={m.id}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setModel(m.id);
+                }}
+                style={[
+                  s.modelRow,
+                  {
+                    backgroundColor: picked ? providerDef.color + '18' : C.bgCard,
+                    borderColor: picked ? providerDef.color : C.border,
+                  },
+                ]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.modelName, { color: C.textPrimary }]}>{m.label}</Text>
+                  {m.hint ? <Text style={[s.modelHint, { color: C.textMuted }]}>{m.hint}</Text> : null}
+                </View>
+                {picked ? (
+                  <View style={[s.check, { backgroundColor: providerDef.color }]}>
+                    <Text style={s.checkMark}>✓</Text>
+                  </View>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
 
         <GlowButton
-          label={testing ? 'Testing…' : 'Test key'}
+          label={testing ? 'Testing…' : 'Test connection'}
           onPress={handleTest}
           variant="secondary"
           fullWidth
-          disabled={testing}
+          disabled={testing || loading}
           icon={testing ? <ActivityIndicator color={C.accent} size="small" /> : undefined}
         />
-
-        <GlowButton label="Save" onPress={handleSave} fullWidth size="lg" />
-
-        {hasOverride || keyInput.length > 0 ? (
-          <TouchableOpacity onPress={handleClear}>
-            <Text style={[s.clearLink, { color: C.danger }]}>Clear saved override</Text>
-          </TouchableOpacity>
-        ) : null}
+        <GlowButton label="Save & start using AI" onPress={handleSave} fullWidth size="lg" />
       </FormScrollLayout>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1 },
+  root: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+  back: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -193,23 +298,67 @@ const s = StyleSheet.create({
   backArrow: {
     width: 8,
     height: 8,
-    borderLeftWidth: 2,
-    borderBottomWidth: 2,
+    borderLeftWidth: 2.5,
+    borderBottomWidth: 2.5,
     transform: [{ rotate: '45deg' }, { translateX: 2 }],
   },
-  headerTitle: { ...Typography.headingMd, flex: 1, textAlign: 'center', fontWeight: '700' },
-  headerSpacer: { width: 36 },
-  content: { gap: Spacing.md },
-  lead: { ...Typography.bodyMd, lineHeight: 22 },
-  label: { fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '800' },
+  scroll: { gap: Spacing.md, paddingBottom: Spacing.xxl },
+  hero: { padding: Spacing.lg, gap: 6 },
+  heroTag: Typography.caption,
+  heroTitle: { fontSize: 22, fontWeight: '800' },
+  heroBody: { ...Typography.bodyMd, lineHeight: 22 },
+  label: { ...Typography.caption, marginTop: 4 },
+  row2: { flexDirection: 'row', gap: 10 },
+  chip: {
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+    gap: 4,
+  },
+  chipTitle: { fontSize: 15, fontWeight: '700' },
+  chipSub: { fontSize: 12 },
+  providerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  providerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+  },
+  providerDot: { width: 8, height: 8, borderRadius: 4 },
+  providerName: { fontSize: 13, fontWeight: '600' },
+  keyCard: { padding: Spacing.md, gap: 10 },
+  keyHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  keyLabel: Typography.caption,
+  link: { fontSize: 13, fontWeight: '700' },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: Radius.md,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 15,
   },
-  banner: { padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
-  bannerText: { fontSize: 13, fontWeight: '600', lineHeight: 19 },
-  clearLink: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 8 },
+  clear: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  modelList: { gap: 8 },
+  modelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+    gap: 12,
+  },
+  modelName: { fontSize: 15, fontWeight: '700' },
+  modelHint: { fontSize: 12, marginTop: 2 },
+  check: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkMark: { color: '#FFF', fontWeight: '800', fontSize: 14 },
 });

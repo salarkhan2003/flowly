@@ -7,6 +7,7 @@ import { EmptyState, FAB, ScreenHeader } from '../../components/ui';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { useTasksStore } from '../../stores/tasksStore';
+import { useScreenAnalytics } from '../../hooks/useScreenAnalytics';
 import { Task, TaskStatus } from '../../types';
 
 type ViewMode = 'list' | 'kanban';
@@ -40,6 +41,7 @@ function KanbanIcon({ color }: { color: string }) {
 }
 
 export default function TasksScreen() {
+  useScreenAnalytics('Tasks');
   const { C } = useTheme();
   const { tasks, getTodayTasks, getOverdueTasks } = useTasksStore();
   const [view, setView] = useState<ViewMode>('list');

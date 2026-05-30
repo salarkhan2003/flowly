@@ -16,14 +16,14 @@ export default {
   expo: {
     name: 'Flowly',
     slug: 'salar',
-    version: '1.0.3',
+    version: '1.0.7',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'cover',
-      backgroundColor: '#050508',
+      backgroundColor: '#E0F2EC',
     },
     assetBundlePatterns: ['**/*'],
     ios: {
@@ -33,19 +33,33 @@ export default {
     android: {
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#050508',
+        backgroundColor: '#E0F2EC',
       },
       package: 'com.flowly.app',
-      versionCode: 4,
+      versionCode: 8,
+      googleServicesFile: './google-services.json',
       softwareKeyboardLayoutMode: 'resize',
-      permissions: ['INTERNET'],
+      permissions: ['INTERNET', 'RECORD_AUDIO'],
     },
     web: {
       bundler: 'metro',
       output: 'static',
       favicon: './assets/favicon.png',
     },
-    plugins: ['expo-router'],
+    plugins: [
+      'expo-router',
+      '@react-native-firebase/app',
+      '@react-native-firebase/crashlytics',
+      [
+        'expo-speech-recognition',
+        {
+          microphonePermission:
+            'Allow Flowly to use the microphone for voice notes and AI commands.',
+          speechRecognitionPermission:
+            'Allow Flowly to turn your speech into text for notes, tasks, and AI.',
+        },
+      ],
+    ],
     scheme: 'flowly',
     experiments: {
       typedRoutes: true,

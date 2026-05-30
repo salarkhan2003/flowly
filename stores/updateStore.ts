@@ -46,7 +46,12 @@ interface UpdateState {
   modal: UpdateModalState;
   showUpdateModal: (payload: Omit<UpdateModalState, 'visible'> & { visible?: boolean }) => void;
   hideUpdateModal: () => void;
-  checkForUpdates: (options?: { force?: boolean; showAlert?: boolean }) => Promise<void>;
+  checkForUpdates: (options?: {
+    force?: boolean;
+    showAlert?: boolean;
+    /** Show download modal on launch when an update exists (not when up to date). */
+    showOnLaunch?: boolean;
+  }) => Promise<void>;
   refreshLatestRelease: () => Promise<void>;
   openUpdateDownload: () => Promise<void>;
   promptUpdate: () => void;
@@ -173,9 +178,12 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
 
   checkForUpdates: async (options) => {
     const policy = getPolicy();
-    if (policy === 'never' && !options?.force) return;
+    if (policy === 'never' && !options?.force && !options?.showOnLaunch) return;
 
-    const runCheck = options?.force || (await shouldRunUpdateCheck(policy));
+    const runCheck =
+      options?.force ||
+      options?.showOnLaunch ||
+      (await shouldRunUpdateCheck(policy));
     if (!runCheck && !options?.force) return;
 
     get().refreshInstalledVersion();
@@ -212,8 +220,11 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
         syncBanners(manifest);
 
         const showModal =
-          options?.showAlert ??
-          (policy === 'on_launch' || manifest.forceUpdate === true);
+          options?.showAlert === true ||
+          (options?.showAlert !== false &&
+            (options?.showOnLaunch === true ||
+              policy === 'on_launch' ||
+              manifest.forceUpdate === true));
 
         if (showModal) {
           get().showUpdateModal({

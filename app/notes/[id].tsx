@@ -29,6 +29,10 @@ import {
   toEditorHtml,
   type FormatAction,
 } from '../../lib/noteContent';
+import { logError } from '../../lib/firebase';
+import { trackEvent } from '../../lib/posthog';
+import { VoiceAgentBar } from '../../components/voice/VoiceAgentBar';
+import { sendAIMessage } from '../../lib/ai';
 
 const AI_ACTIONS: { key: InlineAction; label: string }[] = [
   { key: 'summarize', label: 'Summarize' },
@@ -75,25 +79,34 @@ export default function NoteEditorScreen() {
 
   const handleSave = async () => {
     if (!user) return;
-    if (isNew) {
-      await addNote({
-        id: 'note_' + Date.now(),
-        user_id: user.id,
-        title: title || 'Untitled',
-        content,
-        tags,
-        attachments: [],
-        linked_note_ids: [],
-        is_pinned: isPinned,
-        is_archived: isArchived,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-    } else {
-      await updateNote(id, { title, content, tags, is_pinned: isPinned, is_archived: isArchived });
+    try {
+      if (isNew) {
+        await addNote({
+          id: 'note_' + Date.now(),
+          user_id: user.id,
+          title: title || 'Untitled',
+          content,
+          tags,
+          attachments: [],
+          linked_note_ids: [],
+          is_pinned: isPinned,
+          is_archived: isArchived,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        trackEvent('note_created', {
+          has_tags: tags.length > 0,
+          word_count: countWordsFromHtml(content),
+        });
+      } else {
+        await updateNote(id, { title, content, tags, is_pinned: isPinned, is_archived: isArchived });
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.back();
+    } catch (e) {
+      logError(e, 'notes:handleSave');
+      throw e;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.back();
   };
 
   const handleDelete = () => {
@@ -152,7 +165,8 @@ export default function NoteEditorScreen() {
         const merged = [...new Set([...tags, ...suggested.slice(0, 5)])];
         setTags(merged);
       }
-    } catch {
+    } catch (e) {
+      logError(e, 'notes:handleAI');
       setAiResult('AI action failed. Check Profile → AI for your API key.');
     }
     setAiLoading(false);
@@ -172,6 +186,43 @@ export default function NoteEditorScreen() {
     const next = content.trim() ? `${content}<br/><br/>${block}` : block;
     editorRef.current?.setHtml(next);
     setContent(next);
+  };
+
+  const handleVoiceNote = async (spoken: string) => {
+    const text = spoken.trim();
+    if (!text) return;
+    setAiLoading(true);
+    setAiResult('');
+    try {
+      if (!title.trim()) {
+        setTitle(text.length > 60 ? `${text.slice(0, 57)}…` : text);
+      }
+      const reply = await sendAIMessage({
+        messages: [
+          {
+            id: 'voice_user',
+            role: 'user',
+            content:
+              `Voice note command (respond with note body text only, no markdown fences): "${text}"`,
+            created_at: new Date().toISOString(),
+          },
+        ],
+        appContext: {
+          notes: [],
+          tasks: [],
+          projects: [],
+          userName: user?.name,
+        },
+      });
+      const body = reply.replace(/^```[\s\S]*?```/gm, '').trim() || text;
+      appendPlainAsHtml(body);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      logError(e, 'notes:handleVoiceNote');
+      appendPlainAsHtml(text);
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const addTag = () => {
@@ -255,6 +306,12 @@ export default function NoteEditorScreen() {
         </View>
 
         <NoteFormatToolbar onFormat={handleFormat} />
+
+        <VoiceAgentBar
+          disabled={aiLoading}
+          onSubmit={handleVoiceNote}
+          placeholder="Voice → AI writes into this note"
+        />
 
         <View style={s.aiBar}>
           {AI_ACTIONS.map((a) => (

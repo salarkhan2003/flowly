@@ -4,7 +4,8 @@ import {
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Radius, Spacing, Typography } from '../../constants/theme';
+import { ClayCategory, Radius, Spacing, Typography } from '../../constants/theme';
+import { ClayCard } from '../../components/ui/ClayCard';
 import { useKeyboard } from '../../hooks/useKeyboard';
 import { useTheme } from '../../hooks/useTheme';
 import { useAIStore } from '../../stores/aiStore';
@@ -13,6 +14,8 @@ import { useNotesStore } from '../../stores/notesStore';
 import { useTasksStore } from '../../stores/tasksStore';
 import { useProjectsStore } from '../../stores/projectsStore';
 import { AIConversation, AIMessage } from '../../types';
+import { useScreenAnalytics } from '../../hooks/useScreenAnalytics';
+import { VoiceAgentBar } from '../../components/voice/VoiceAgentBar';
 
 /** Space above floating tab bar when keyboard is closed */
 const TAB_BAR_CLEARANCE = 78;
@@ -26,6 +29,7 @@ const SUGGESTIONS = [
 ];
 
 export default function AIScreen() {
+  useScreenAnalytics('AI');
   const { C } = useTheme();
   const { user } = useAuthStore();
   const { notes } = useNotesStore();
@@ -87,18 +91,21 @@ export default function AIScreen() {
     }
   }, [isLoading]);
 
-  const handleSend = async () => {
-    const msg = input.trim();
-    if (!msg || isLoading) return;
-    setInput('');
+  const submitToAgent = async (msg: string) => {
+    const trimmed = msg.trim();
+    if (!trimmed || isLoading) return;
 
-    // Use existing conversation or create a new one
     const convId = activeConvIdRef.current ?? createConversation();
     activeConvIdRef.current = convId;
-
-    // sendMessage will create the conversation in-store if needed
-    await sendMessage(convId, msg);
+    await sendMessage(convId, trimmed);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
+  const handleSend = async () => {
+    const msg = input.trim();
+    if (!msg) return;
+    setInput('');
+    await submitToAgent(msg);
   };
 
   const handleNewChat = () => {
@@ -152,20 +159,29 @@ export default function AIScreen() {
         >
           {(!activeConv || activeConv.messages.length === 0) && (
             <View style={s.empty}>
-              <View style={[s.emptyIcon, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}>
-                <Text style={[s.emptyIconTxt, { color: C.accent }]}>AI</Text>
-              </View>
+              <ClayCard tone="coral" glowing style={s.emptyIconCard}>
+                <Text style={[s.emptyIconTxt, { color: ClayCategory.coral }]}>AI</Text>
+              </ClayCard>
               <Text style={[s.emptyTitle, { color: C.textPrimary }]}>How can I help?</Text>
               <Text style={[s.emptySub, { color: C.textSecondary }]}>
                 Full access to your notes, tasks, and projects.
               </Text>
               <View style={s.badges}>
-                {[`${notes.length} Notes`, `${tasks.length} Tasks`, `${projects.length} Projects`].map((l) => (
-                  <View key={l} style={[s.badge, { backgroundColor: C.accentDim, borderColor: C.borderGlow }]}>
-                    <Text style={[s.badgeTxt, { color: C.accent }]}>{l}</Text>
+                {[
+                  { l: `${notes.length} Notes`, c: ClayCategory.notes },
+                  { l: `${tasks.length} Tasks`, c: ClayCategory.tasks },
+                  { l: `${projects.length} Projects`, c: ClayCategory.projects },
+                ].map(({ l, c }) => (
+                  <View key={l} style={[s.badge, { backgroundColor: c + '22', borderColor: c + '66' }]}>
+                    <Text style={[s.badgeTxt, { color: c }]}>{l}</Text>
                   </View>
                 ))}
               </View>
+              <VoiceAgentBar
+                disabled={isLoading}
+                onSubmit={submitToAgent}
+                placeholder="Speak to create notes, tasks, or projects"
+              />
               <View style={s.suggs}>
                 {SUGGESTIONS.map((sg) => (
                   <TouchableOpacity
@@ -212,11 +228,12 @@ export default function AIScreen() {
             ? { marginBottom: keyboardHeight }
             : null),
         }]}>
+          <VoiceAgentBar compact disabled={isLoading} onSubmit={submitToAgent} />
           <TextInput
             style={[s.input, { backgroundColor: C.bgCardAlt, borderColor: C.border, color: C.textPrimary }]}
             value={input}
             onChangeText={setInput}
-            placeholder="Ask anything..."
+            placeholder="Type or use mic…"
             placeholderTextColor={C.textMuted}
             returnKeyType="send"
             blurOnSubmit={false}
@@ -353,9 +370,12 @@ const s = StyleSheet.create({
   msgs: { flex: 1 },
   msgsContent: { padding: Spacing.md, gap: 12, paddingBottom: 20 },
   empty: { alignItems: 'center', paddingTop: 40, gap: 14 },
-  emptyIcon: {
-    width: 72, height: 72, borderRadius: 36, borderWidth: 2,
-    alignItems: 'center', justifyContent: 'center',
+  emptyIconCard: {
+    width: 88,
+    height: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
   },
   emptyIconTxt: { fontSize: 20, fontWeight: '800' },
   emptyTitle: { ...Typography.headingLg, fontWeight: '700' },

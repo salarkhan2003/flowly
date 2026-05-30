@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { trackEvent } from '../lib/posthog';
 import { isOverdueDueDate, isSameCalendarDay } from '../lib/dates';
 import { storage } from '../lib/storage';
 import { Task, TaskStatus } from '../types';
@@ -68,6 +69,9 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       status: newStatus,
       completed_at: newStatus === 'done' ? new Date().toISOString() : undefined,
     });
+    if (newStatus === 'done') {
+      trackEvent('task_completed');
+    }
   },
 
   getTasksByProject: (projectId) => get().tasks.filter((t) => t.project_id === projectId),

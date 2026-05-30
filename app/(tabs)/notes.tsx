@@ -10,6 +10,7 @@ import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { htmlToPlainText } from '../../lib/noteContent';
 import { useNotesStore } from '../../stores/notesStore';
+import { useScreenAnalytics } from '../../hooks/useScreenAnalytics';
 
 type FilterType = 'all' | 'pinned' | 'archived' | 'tagged' | 'recent';
 type SortType = 'updated' | 'created' | 'title' | 'words';
@@ -31,6 +32,7 @@ const SORTS: { key: SortType; label: string }[] = [
 ];
 
 export default function NotesScreen() {
+  useScreenAnalytics('Notes');
   const { C } = useTheme();
   const { notes } = useNotesStore();
   const [search, setSearch] = useState('');

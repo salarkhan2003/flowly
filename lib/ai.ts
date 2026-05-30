@@ -1,11 +1,10 @@
 import { AIMessage } from '../types';
-import { resolveGroqApiKey } from './groqKey';
-
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'llama-3.3-70b-versatile';
+import { resolveAiCredentials } from './aiConfig';
+import { providerChat, testProviderConnection } from './providerChat';
+import type { AiProviderId } from './aiProviders';
 
 const MISSING_KEY_MSG =
-  'AI is not configured. Open Profile → AI Assistant → Configure API key, or reinstall an APK built with the Groq key embedded.';
+  'Set up AI in Profile → AI Assistant → Configure. Choose App default (Groq) or add your own API key, then Save.';
 
 export interface AppContext {
   tasks?: unknown;
@@ -22,55 +21,28 @@ interface SendAIMessageParams {
 
 export type InlineAction = 'summarize' | 'rewrite' | 'expand' | 'extract_tasks' | 'auto_tag';
 
-/** Ping Groq with a key (Settings → Test Key). */
-export async function testGroqApiKey(apiKey: string): Promise<{ ok: boolean; message: string }> {
-  const key = apiKey.trim();
-  if (!key) return { ok: false, message: 'Enter an API key first.' };
-
-  try {
-    const res = await fetch(GROQ_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: 'user', content: 'Hi' }],
-        max_tokens: 8,
-      }),
-    });
-    if (res.ok) return { ok: true, message: 'API key works.' };
-    const err = await res.text().catch(() => res.statusText);
-    return { ok: false, message: `Groq returned ${res.status}: ${err.slice(0, 120)}` };
-  } catch {
-    return { ok: false, message: 'Could not reach Groq. Check your connection.' };
-  }
+export async function testAiConnection(
+  provider: AiProviderId,
+  apiKey: string,
+  model: string
+): Promise<{ ok: boolean; message: string }> {
+  return testProviderConnection(provider, apiKey, model);
 }
 
-async function groqChat(messages: { role: string; content: string }[]): Promise<string> {
-  let apiKey: string | null = null;
-  try {
-    apiKey = await resolveGroqApiKey();
-  } catch {
-    return MISSING_KEY_MSG;
-  }
+/** @deprecated */
+export const testGroqApiKey = (
+  apiKey: string,
+  model?: string
+): Promise<{ ok: boolean; message: string }> =>
+  testProviderConnection('groq', apiKey, model ?? 'llama-3.3-70b-versatile');
 
-  if (!apiKey) return MISSING_KEY_MSG;
+async function chat(messages: { role: string; content: string }[]): Promise<string> {
+  const creds = await resolveAiCredentials();
+  if (!creds?.apiKey) return MISSING_KEY_MSG;
 
-  try {
-    const res = await fetch(GROQ_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: MODEL, messages, max_tokens: 1024, temperature: 0.7 }),
-    });
-
-    if (!res.ok) {
-      return `AI request failed (${res.status}). Check your API key in Settings → AI.`;
-    }
-
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content ?? '';
-  } catch {
-    return 'Could not reach Groq. Check your connection and try again.';
-  }
+  const result = await providerChat(creds.provider, creds.apiKey, creds.model, messages);
+  if (!result.ok) return result.error;
+  return result.text;
 }
 
 const SYSTEM_PROMPT = `You are Flowly AI — the built-in productivity assistant inside the Flowly app (notes, tasks, projects, offline-first).
@@ -167,7 +139,7 @@ export async function sendAIMessage({ messages, appContext }: SendAIMessageParam
     ? `${SYSTEM_PROMPT}\n\nUser context:\n${lines.join('\n')}`
     : SYSTEM_PROMPT;
 
-  return groqChat([
+  return chat([
     { role: 'system', content: systemContent },
     ...messages.map((m) => ({
       role: m.role,
@@ -178,7 +150,7 @@ export async function sendAIMessage({ messages, appContext }: SendAIMessageParam
 
 export async function generateDailyBrief(params: { tasks: string; notes: string; date: string }): Promise<string> {
   const prompt = `Today is ${params.date}. Tasks due: ${params.tasks || 'none'}. Recent notes: ${params.notes || 'none'}. Write a warm, motivating 1-2 sentence daily brief.`;
-  return groqChat([
+  return chat([
     { role: 'system', content: 'You are a friendly productivity assistant. Keep responses brief.' },
     { role: 'user', content: prompt },
   ]);
@@ -192,7 +164,7 @@ export async function runInlineAction(action: InlineAction, content: string): Pr
     extract_tasks: `Extract a bullet list of actionable tasks from this note:\n\n${content}`,
     auto_tag: `Suggest 3-5 relevant tags for this note (comma-separated, lowercase, no #):\n\n${content}`,
   };
-  return groqChat([
+  return chat([
     { role: 'system', content: 'You are a helpful writing assistant. Be concise and practical.' },
     { role: 'user', content: prompts[action] },
   ]);
