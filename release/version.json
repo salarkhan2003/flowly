@@ -2,6 +2,6 @@
   "latestVersion": "1.0.8",
   "latestVersionCode": 9,
   "apkUrl": "https://github.com/salarkhan2003/flowly/releases/download/v1.0.8/Flowly.apk",
-  "changelog": "• Push notifications: task reminders, daily 9 AM planning, deadline alerts\n• Instant alerts when you create notes, tasks, or projects\n• Profile → Privacy → Push notifications toggle\n• First-launch permission prompt for reminders",
-  "sha256": ""
+  "changelog": "• Push notifications: instant alerts on create note/task/project\n• Task reminders 1 hour before due; same-day tasks remind in 1 hour\n• Daily 9 AM planning notification (device local time)\n• Deadline Today alerts on app open\n• Profile → Privacy → Push notifications toggle\n• Expo push token for remote testing at expo.dev/notifications",
+  "sha256": "f6f32ed12cad943075028377711ccb61798d1c8356f0d2dc1e406753fe505c2d"
 }

@@ -153,6 +153,15 @@ npm run eas:build:android
 
 Install from the [Expo dashboard](https://expo.dev) or download the APK artifact. Upload to [GitHub Releases](https://github.com/salarkhan2003/flowly/releases) as **`Flowly.apk`**.
 
+**Latest notifications build (v1.0.8 · production verified):**
+
+| | |
+|--|--|
+| **APK URL** | https://expo.dev/artifacts/eas/srYygikuEcPKq8WuRJkA8S.apk |
+| **SHA256** | `f6f32ed12cad943075028377711ccb61798d1c8356f0d2dc1e406753fe505c2d` |
+| **Local copy** | `./Flowly-v1.0.8-notifications.apk` |
+| **Build page** | https://expo.dev/accounts/salarkhan22s-organization/projects/salar/builds/d62e0dae-f1f9-44ca-a979-c000de83cac8 |
+
 ---
 
 ## Releasing a new version
