@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onNoteCreated } from '../lib/notifications';
 import { Note } from '../types';
 import { storage } from '../lib/storage';
 
@@ -41,6 +42,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     set({ notes });
     const uid = get().userId || note.user_id;
     if (uid) await storage.set(key(uid), notes);
+    onNoteCreated(note);
   },
 
   updateNote: async (id, updates) => {

@@ -22,6 +22,7 @@ import { logError } from '../../lib/firebase';
 import { pdfExportTypeFromCounts, trackEvent } from '../../lib/posthog';
 import { useScreenAnalytics } from '../../hooks/useScreenAnalytics';
 import { getAiStatus } from '../../lib/aiConfig';
+import { isPushEnabled, onPushEnabledChanged } from '../../lib/notifications';
 import { shareLatestVersion, getFlowlyDownloadUrl } from '../../lib/shareApp';
 import { showConfirm, showError } from '../../lib/alert';
 import { getInstalledVersionDisplay, isUpdateAvailable } from '../../lib/updates';
@@ -70,6 +71,7 @@ export default function ProfileScreen() {
   const [showChangelog, setShowChangelog] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [aiStatus, setAiStatus] = useState({ ready: false, label: 'Setting up…' });
+  const [pushEnabled, setPushEnabled] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
@@ -85,6 +87,7 @@ export default function ProfileScreen() {
               : 'Add your API key',
         })
       );
+      isPushEnabled().then(setPushEnabled);
     }, [])
   );
 
@@ -114,6 +117,13 @@ export default function ProfileScreen() {
   const handleThemeToggle = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await toggle();
+  };
+
+  const handlePushToggle = async (enabled: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPushEnabled(enabled);
+    await updateSettings({ notifications_enabled: enabled });
+    await onPushEnabledChanged(enabled, tasks);
   };
 
   const handleExport = async () => {
@@ -255,16 +265,16 @@ export default function ProfileScreen() {
           />
         </ProfileSection>
 
-        <ProfileSection title="Notifications">
+        <ProfileSection title="Privacy" subtitle="Local notifications on this device">
           <ProfileRow
-            label="Push reminders"
-            hint="Task and note reminders on this device"
+            label="Push notifications"
+            hint="Task reminders, daily planning, and deadline alerts"
             iconLetter="N"
-            iconBg={C.warningDim}
-            iconColor={C.warning}
+            iconBg={C.purpleDim}
+            iconColor={C.purple}
             switchProps={{
-              value: user?.settings?.notifications_enabled ?? true,
-              onValueChange: (v) => updateSettings({ notifications_enabled: v }),
+              value: pushEnabled,
+              onValueChange: handlePushToggle,
             }}
             last
           />

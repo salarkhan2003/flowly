@@ -16,7 +16,7 @@ export default {
   expo: {
     name: 'Flowly',
     slug: 'salar',
-    version: '1.0.7',
+    version: '1.0.8',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -36,10 +36,10 @@ export default {
         backgroundColor: '#E0F2EC',
       },
       package: 'com.flowly.app',
-      versionCode: 8,
+      versionCode: 9,
       googleServicesFile: './google-services.json',
       softwareKeyboardLayoutMode: 'resize',
-      permissions: ['INTERNET', 'RECORD_AUDIO'],
+      permissions: ['INTERNET', 'RECORD_AUDIO', 'POST_NOTIFICATIONS'],
     },
     web: {
       bundler: 'metro',
@@ -57,6 +57,13 @@ export default {
             'Allow Flowly to use the microphone for voice notes and AI commands.',
           speechRecognitionPermission:
             'Allow Flowly to turn your speech into text for notes, tasks, and AI.',
+        },
+      ],
+      [
+        'expo-notifications',
+        {
+          icon: './assets/notification-icon.png',
+          color: '#8B5CF6',
         },
       ],
     ],

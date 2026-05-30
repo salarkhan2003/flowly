@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onProjectCreated } from '../lib/notifications';
 import { Project } from '../types';
 import { storage } from '../lib/storage';
 
@@ -38,6 +39,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
     set({ projects });
     const uid = get().userId || project.user_id;
     if (uid) await storage.set(key(uid), projects);
+    onProjectCreated(project);
   },
 
   updateProject: async (id, updates) => {

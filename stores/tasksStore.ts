@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { trackEvent } from '../lib/posthog';
 import { isOverdueDueDate, isSameCalendarDay } from '../lib/dates';
+import { onTaskCreated, onTaskUpdated } from '../lib/notifications';
 import { storage } from '../lib/storage';
 import { Task, TaskStatus } from '../types';
 
@@ -43,15 +44,19 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     set({ tasks });
     const uid = get().userId || task.user_id;
     if (uid) await storage.set(key(uid), tasks);
+    onTaskCreated(task);
   },
 
   updateTask: async (id, updates) => {
+    const prev = get().tasks.find((t) => t.id === id);
     const tasks = get().tasks.map((t) =>
       t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
     );
     set({ tasks });
     const uid = get().userId;
     if (uid) await storage.set(key(uid), tasks);
+    const next = tasks.find((t) => t.id === id);
+    if (next) onTaskUpdated(prev, next);
   },
 
   deleteTask: async (id) => {

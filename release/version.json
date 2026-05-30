@@ -1,7 +1,7 @@
 {
-  "latestVersion": "1.0.7",
-  "latestVersionCode": 8,
-  "apkUrl": "https://github.com/salarkhan2003/flowly/releases/download/v1.0.7/Flowly.apk",
-  "changelog": "• Profile: Full redesign — hero, stats, clean sections\n• AI: New users auto-use App default Groq on first launch\n• Voice: Mic works in production APK (speech plugin + permissions)\n• Fixes: Appearance/theme row layout, bundled API for fresh installs",
+  "latestVersion": "1.0.8",
+  "latestVersionCode": 9,
+  "apkUrl": "https://github.com/salarkhan2003/flowly/releases/download/v1.0.8/Flowly.apk",
+  "changelog": "• Push notifications: task reminders, daily 9 AM planning, deadline alerts\n• Instant alerts when you create notes, tasks, or projects\n• Profile → Privacy → Push notifications toggle\n• First-launch permission prompt for reminders",
   "sha256": ""
 }

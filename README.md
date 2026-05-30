@@ -11,10 +11,11 @@
 
 **Your second brain. Offline-first. AI-powered.**
 
-[![Version](https://img.shields.io/badge/version-1.0.7-00FF9D?style=flat-square&labelColor=050A14)](.)
+[![Version](https://img.shields.io/badge/version-1.0.8-00FF9D?style=flat-square&labelColor=050A14)](.)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-00FF9D?style=flat-square&labelColor=050A14)](.)
 [![Expo](https://img.shields.io/badge/Expo%20SDK-54-00FF9D?style=flat-square&labelColor=050A14)](https://expo.dev)
 [![AI](https://img.shields.io/badge/AI-Multi--provider-00FF9D?style=flat-square&labelColor=050A14)](.)
+[![Notifications](https://img.shields.io/badge/notifications-Local%20%2B%20Expo%20Push-00FF9D?style=flat-square&labelColor=050A14)](.)
 [![Storage](https://img.shields.io/badge/storage-AsyncStorage%20local-00FF9D?style=flat-square&labelColor=050A14)](.)
 [![License](https://img.shields.io/badge/license-MIT-00FF9D?style=flat-square&labelColor=050A14)](LICENSE)
 
@@ -35,11 +36,12 @@
 | **Projects** | Color-coded project boards |
 | **AI** | Chat with context from local data; create notes, tasks, projects via text or voice |
 | **Voice** | Speech-to-text on AI & Notes (production APK / dev build — not Expo Go) |
+| **Notifications** | Local alerts + Expo push token; task reminders, daily planning, deadlines |
 | **Updates** | GitHub `version.json` check + in-app APK download |
 | **Community** | Optional team signup & feedback (Formspree) |
 | **Telegram** | [Flowly AI Team](https://t.me/FlowlyAITeam) (optional) |
 
-**Current release:** v1.0.7 · Android `com.flowly.app` · `versionCode` 8
+**Current release:** v1.0.8 · Android `com.flowly.app` · `versionCode` 9
 
 ---
 
@@ -68,7 +70,7 @@ npx expo start
 
 Press `a` (Android) or `i` (iOS) in the Expo CLI.
 
-> **Voice & production AI:** Use `eas build --profile development` or install a release APK. Expo Go cannot load `expo-speech-recognition`.
+> **Voice, notifications & full AI:** Use a **production APK** or dev build. Expo Go cannot load native speech or reliable scheduled notifications.
 
 ---
 
@@ -143,8 +145,8 @@ npm run eas:build:android
 | Field | Value |
 |-------|--------|
 | Package | `com.flowly.app` |
-| Version | `1.0.7` |
-| `versionCode` | `8` |
+| Version | `1.0.8` |
+| `versionCode` | `9` |
 | Output | APK (`production` profile) |
 | Signing | EAS keystore (`Build Credentials QkP353jey4`) |
 | Owner | `salarkhan22s-organization` |
@@ -196,8 +198,12 @@ lib/
 ├── ai.ts, aiConfig.ts      # Multi-provider chat + credentials
 ├── aiProviders.ts          # Groq, Gemini, Claude, OpenAI, Qwen, DeepSeek
 ├── aiBootstrap.ts          # First-launch App default setup
+├── notifications.ts        # Local + Expo push notifications
 ├── providerChat.ts         # Provider HTTP adapters
 └── updates.ts, shareApp.ts, posthog.ts, firebase.ts
+
+hooks/
+├── useNotifications.ts     # Init, AppState deadline checks, permission modal
 
 stores/                     # Zustand + AsyncStorage
 release/version.json        # Update manifest (hosted on GitHub main)
@@ -234,6 +240,59 @@ Structured create actions are parsed server-side; users see plain confirmations.
 
 ---
 
+## Push & local notifications
+
+Flowly uses **expo-notifications** — all scheduling works **offline** on device. No backend required for alerts. The app also registers an **Expo push token** (for optional remote testing via [expo.dev/notifications](https://expo.dev/notifications)).
+
+### What fires automatically
+
+| Trigger | Notification |
+|---------|----------------|
+| Create note | `Note Created ✅` + title |
+| Create task | `Task Added 📋` + title |
+| Create project | `New Project 🚀` + name |
+| Task due today (app open / foreground) | `Deadline Today ⚠️` + title |
+| Task with due date | Reminder **1 hour before** due (9:00 AM local due time; same-day tasks → 1 hour from create) |
+| Daily 9:00 AM (device local) | `Good morning! Plan 3 tasks for today 🎯` |
+
+### User controls
+
+- **First launch:** modal → **Allow** → system permission + token saved (`expo_push_token` in AsyncStorage)
+- **Profile → Privacy → Push notifications:** ON/OFF (key `push_enabled`, default `true`)
+  - OFF → cancels all scheduled notifications, skips instant alerts
+  - ON → re-schedules daily reminder + all future task reminders
+
+### Production APK requirements
+
+Configured in `app.config.js`:
+
+- Plugin: `expo-notifications` with icon `./assets/notification-icon.png`, color `#8B5CF6`
+- Android permission: `POST_NOTIFICATIONS`
+- Native module included only in **EAS / dev builds** (not Expo Go)
+
+### Verify after installing APK
+
+1. Install **v1.0.8+** production APK on a **physical Android device** (not emulator-only for push token).
+2. Open app → tap **Allow** on the notification prompt (or Profile → Privacy → enable Push).
+3. Connect device via USB and run `adb logcat | findstr FlowlyNotif` (Windows) or filter Logcat for `FlowlyNotif`.
+4. Confirm logs show:
+   - `FLOWLY_PUSH_TOKEN: ExponentPushToken[…]`
+   - `[FlowlyNotif] VERIFY { ok: true, permission: 'granted', … }`
+5. **Instant test:** create a note or task → notification should appear within 1–2 seconds.
+6. **Reminder test:** create a task with **due date = today** → reminder scheduled ~1 hour later (check log: `scheduled task reminder`).
+7. **Remote push test (optional):** copy token from logs → paste at [expo.dev/notifications](https://expo.dev/notifications) → send test push.
+
+### Storage keys
+
+| Key | Purpose |
+|-----|---------|
+| `push_enabled` | User toggle (default true) |
+| `expo_push_token` | Expo push token string |
+| `scheduled_notifs` | Map of task IDs → notification IDs + daily ID |
+| `notif_permission_prompt_shown` | First-run modal dismissed |
+
+---
+
 ## Voice input
 
 - **Where:** AI tab (empty state + input bar mic), Note editor
@@ -265,7 +324,10 @@ Comparison uses **`latestVersionCode > installed versionCode`**.
 | AI "not configured" (new user) | Install APK built with `EXPO_PUBLIC_GROQ_API_KEY` on EAS; or Profile → AI → **My API key** |
 | AI fails with App default | Rebuild APK with Groq secret on **production** environment; Profile → AI → Test connection |
 | Voice does not work | Use release APK or dev build, not Expo Go; grant mic + speech permissions |
-| Mic visible but no recording | Reinstall latest APK (v1.0.7+); ensure `expo-speech-recognition` in build |
+| No notifications in APK | Install v1.0.8+; allow permission on first prompt; Profile → Privacy → Push ON; check `adb logcat` for `FlowlyNotif` |
+| Instant alert missing | Grant Android notification permission; toggle Push OFF then ON in Profile |
+| Task reminder not firing | Due date must be today or future; same-day tasks remind in ~1 hour; app must not force-stop |
+| Mic visible but no recording | Reinstall latest APK; ensure `expo-speech-recognition` in build |
 | APK update won't install | Same package `com.flowly.app` + same EAS signing key |
 | Share link shows old version | Push `release/version.json` to `main` |
 | `npm install` peer errors | `npm install --legacy-peer-deps` |

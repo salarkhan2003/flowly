@@ -7,13 +7,13 @@ import { PostHogProvider } from 'posthog-react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
-import { requestNotificationPermissions } from '../lib/notifications';
 import { AppModalHost } from '../components/AppModalHost';
 import { QuickCapturePicker } from '../components/home/QuickCapturePicker';
 import { ForceUpdateGate } from '../components/ForceUpdateGate';
 import { UpdateModalHost } from '../components/UpdateModalHost';
 import { AnalyticsBootstrap } from '../components/AnalyticsBootstrap';
 import { AppErrorBoundary } from '../components/AppErrorBoundary';
+import { NotificationPermissionModal } from '../components/NotificationPermissionModal';
 import { getColors } from '../constants/theme';
 import { cacheInstalledVersionCode } from '../lib/updates';
 import { useUpdateStore } from '../stores/updateStore';
@@ -21,12 +21,20 @@ import { usePrefsStore } from '../stores/prefsStore';
 import { stabilizeDevKeepAwake } from '../lib/devKeepAwake';
 import { getPostHogApiKey, getPostHogOptions } from '../lib/posthog';
 import { ensureAiReadyOnLaunch } from '../lib/aiBootstrap';
+import { useNotifications } from '../hooks/useNotifications';
+import '../lib/notifications';
 
 SplashScreen.preventAutoHideAsync();
 
 function AppShell() {
   const mode = useThemeStore((s) => s.mode);
   const C = getColors(mode);
+  const {
+    showPermissionModal,
+    handleAllowNotifications,
+    handleDismissPermissionModal,
+  } = useNotifications();
+
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: C.bg }}>
       <SafeAreaProvider>
@@ -61,6 +69,11 @@ function AppShell() {
           <UpdateModalHost />
           <AppModalHost />
           <QuickCapturePicker />
+          <NotificationPermissionModal
+            visible={showPermissionModal}
+            onAllow={handleAllowNotifications}
+            onDismiss={handleDismissPermissionModal}
+          />
         </ForceUpdateGate>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -85,7 +98,6 @@ export default function RootLayout() {
       await refreshLatestRelease().catch(() => {});
       checkForUpdates({ showOnLaunch: true }).catch(() => {});
     });
-    requestNotificationPermissions().catch(() => {});
     stabilizeDevKeepAwake().catch(() => {});
   }, []);
 
